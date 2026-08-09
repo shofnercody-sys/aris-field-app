@@ -31,7 +31,8 @@
     display: flex; align-items: center; gap: 10px;
     position: sticky; top: 0; z-index: 5;
   }
-  header.app h1 { font-size: 17px; font-weight: 700; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  header.app .brand { height: 20px; width: auto; flex-shrink: 0; }
+  header.app h1 { font-size: 16px; font-weight: 600; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; opacity: .95; }
   header.app button { background: rgba(255,255,255,.16); color: #fff; border: 0; border-radius: 8px; padding: 8px 12px; font-size: 14px; flex-shrink: 0; }
   main {
     padding: 14px 14px calc(var(--tabbar) + env(safe-area-inset-bottom) + 24px);
@@ -114,7 +115,8 @@
 </head>
 <body>
 <header class="app">
-  <h1 id="title">ARIS Field</h1>
+  <img src="logo-white.png" alt="ARIS" class="brand" />
+  <h1 id="title">Field</h1>
   <button id="backBtn" class="hidden">Trials</button>
 </header>
 <main id="main"></main>
@@ -136,7 +138,7 @@
    either one bundle file (data + photos + voice memos) that desktop ARIS imports
    directly, or plain CSVs. */
 
-const APP_VERSION = '1.2';
+const APP_VERSION = '1.3';
 const LS = 'arisField.v1';
 const S = load();
 function load() {
@@ -312,7 +314,7 @@ function render() {
   if (!t) view = 'home';
   tabs.classList.toggle('hidden', view === 'home');
   backBtn.classList.toggle('hidden', view === 'home');
-  titleEl.textContent = view === 'home' ? 'ARIS Field' : t.name;
+  titleEl.textContent = view === 'home' ? 'Field' : t.name;
   tabs.querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.tab === view));
   if (view === 'home') renderHome();
   else if (view === 'entry') renderEntry(t);
