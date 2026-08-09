@@ -16,30 +16,38 @@
   :root {
     --navy: #1e3a5f; --green: #2e7d32; --bg: #f4f6f9; --card: #ffffff;
     --ink: #0f172a; --muted: #64748b; --line: #e2e8f0; --red: #b91c1c;
+    --tabbar: 62px;
   }
   * { box-sizing: border-box; margin: 0; }
   html, body { height: 100%; }
   body {
     font: 16px/1.45 -apple-system, "Segoe UI", Roboto, sans-serif;
     background: var(--bg); color: var(--ink);
-    padding-bottom: calc(64px + env(safe-area-inset-bottom));
+    overflow-x: hidden;
   }
   header.app {
-    background: var(--navy); color: #fff; padding: calc(10px + env(safe-area-inset-top)) 16px 10px;
-    display: flex; align-items: center; gap: 10px; position: sticky; top: 0; z-index: 5;
+    background: var(--navy); color: #fff;
+    padding: calc(10px + env(safe-area-inset-top)) 14px 10px;
+    display: flex; align-items: center; gap: 10px;
+    position: sticky; top: 0; z-index: 5;
   }
-  header.app h1 { font-size: 17px; font-weight: 700; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  header.app button { background: rgba(255,255,255,.14); color: #fff; border: 0; border-radius: 8px; padding: 7px 11px; font-size: 14px; }
-  main { padding: 14px; max-width: 560px; margin: 0 auto; }
+  header.app h1 { font-size: 17px; font-weight: 700; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  header.app button { background: rgba(255,255,255,.16); color: #fff; border: 0; border-radius: 8px; padding: 8px 12px; font-size: 14px; flex-shrink: 0; }
+  main {
+    padding: 14px 14px calc(var(--tabbar) + env(safe-area-inset-bottom) + 24px);
+    max-width: 560px; margin: 0 auto;
+  }
   .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px; margin-bottom: 12px; }
   .card h2 { font-size: 15px; margin-bottom: 8px; }
   .muted { color: var(--muted); font-size: 13px; }
+  .center { text-align: center; }
   .btn {
     display: block; width: 100%; text-align: center; background: var(--green); color: #fff;
-    border: 0; border-radius: 10px; padding: 13px; font-size: 16px; font-weight: 600; margin-top: 8px;
+    border: 0; border-radius: 10px; padding: 13px; font-size: 16px; font-weight: 600; margin-top: 10px;
   }
-  .btn.secondary { background: #e2e8f0; color: var(--ink); font-weight: 500; }
-  .btn.small { padding: 9px; font-size: 14px; margin-top: 6px; }
+  .btn.secondary { background: #e8edf3; color: var(--ink); font-weight: 500; }
+  .btn.small { padding: 10px; font-size: 14px; margin-top: 8px; }
+  .btn.danger { background: #fee2e2; color: var(--red); font-weight: 500; }
   .btn:disabled { opacity: .45; }
   input[type="text"], textarea, select {
     width: 100%; border: 1px solid var(--line); border-radius: 9px; padding: 11px; font-size: 16px; background: #fff; color: var(--ink);
@@ -47,35 +55,45 @@
   label.f { display: block; margin-top: 10px; font-size: 13px; color: var(--muted); }
   label.f > * { margin-top: 4px; }
   /* trial list */
-  .trialRow { display: flex; align-items: center; gap: 10px; padding: 12px 4px; border-bottom: 1px solid var(--line); }
+  .trialRow { display: flex; align-items: center; gap: 10px; padding: 12px 2px; border-bottom: 1px solid var(--line); }
   .trialRow:last-child { border-bottom: 0; }
   .trialRow .grow { flex: 1; min-width: 0; }
-  .trialRow .name { font-weight: 600; }
-  .trialRow button { border: 0; background: #eef2f7; border-radius: 8px; padding: 8px 12px; font-size: 14px; }
+  .trialRow .name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .trialRow button { border: 0; background: #eef2f7; border-radius: 8px; padding: 9px 13px; font-size: 14px; flex-shrink: 0; }
   /* entry */
-  .plotHead { display: flex; align-items: baseline; gap: 10px; }
-  .plotHead .num { font-size: 30px; font-weight: 800; }
+  .plotHead { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+  .plotHead .num { font-size: 28px; font-weight: 800; }
   .plotHead .meta { font-size: 15px; color: var(--muted); }
-  .valRow { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
-  .valRow .lbl { flex: 1; font-size: 14px; }
-  .valRow input { width: 128px; text-align: right; font-size: 20px; padding: 12px 10px; }
+  .valRow { display: flex; align-items: center; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
+  .valRow .lbl { flex: 1 1 150px; font-size: 14px; min-width: 0; overflow-wrap: anywhere; }
+  .valRow input { flex: 0 0 120px; width: 120px; text-align: right; font-size: 20px; padding: 12px 10px; }
   .stepBar { display: flex; gap: 8px; margin-top: 12px; }
-  .stepBar button { flex: 1; }
-  .progress { text-align: center; margin-top: 8px; }
+  .stepBar .btn { flex: 1; margin-top: 0; }
+  .progress { text-align: center; margin-top: 10px; }
   /* lists */
-  .item { padding: 10px 2px; border-bottom: 1px solid var(--line); }
+  .item { padding: 10px 2px; border-bottom: 1px solid var(--line); overflow-wrap: anywhere; }
   .item:last-child { border-bottom: 0; }
   .item .ts { font-size: 12px; color: var(--muted); }
-  .item .del { float: right; border: 0; background: none; color: var(--red); font-size: 14px; padding: 2px 6px; }
+  .item .del { float: right; border: 0; background: none; color: var(--red); font-size: 15px; padding: 2px 8px; }
+  /* photos */
+  .photoGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 8px; }
+  .photoCard { border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: #fff; }
+  .photoCard img { display: block; width: 100%; height: 120px; object-fit: cover; }
+  .photoCard .pc { padding: 7px 9px; font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
+  .photoCard .del { width: 100%; border: 0; background: #fff5f5; color: var(--red); padding: 7px; font-size: 13px; }
+  /* voice */
+  .memo audio { width: 100%; margin-top: 6px; }
+  .recDot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: #dc2626; margin-right: 7px; animation: blink 1s infinite; vertical-align: middle; }
+  @keyframes blink { 50% { opacity: .25; } }
   /* tab bar */
   nav.tabs {
     position: fixed; left: 0; right: 0; bottom: 0; display: flex; background: #fff;
     border-top: 1px solid var(--line); padding-bottom: env(safe-area-inset-bottom); z-index: 5;
   }
-  nav.tabs button { flex: 1; border: 0; background: none; padding: 10px 4px 8px; font-size: 12.5px; color: var(--muted); }
+  nav.tabs button { flex: 1; border: 0; background: none; padding: 9px 2px 7px; font-size: 11.5px; color: var(--muted); }
   nav.tabs button.on { color: var(--green); font-weight: 700; }
-  nav.tabs .ic { display: block; font-size: 20px; line-height: 1.15; }
-  .note { background: #f0fdf4; border: 1px solid #bbf7d0; color: #166534; border-radius: 9px; padding: 9px 11px; font-size: 13.5px; margin-bottom: 10px; }
+  nav.tabs .ic { display: block; font-size: 20px; line-height: 1.2; }
+  .note { background: #f0fdf4; border: 1px solid #bbf7d0; color: #166534; border-radius: 9px; padding: 9px 11px; font-size: 13.5px; margin-bottom: 10px; overflow-wrap: anywhere; }
   .err { background: #fef2f2; border-color: #fecaca; color: var(--red); }
   .hidden { display: none !important; }
 </style>
@@ -87,20 +105,24 @@
 </header>
 <main id="main"></main>
 <nav class="tabs hidden" id="tabs">
-  <button data-tab="entry"><span class="ic">▦</span>Entry</button>
-  <button data-tab="log"><span class="ic">🗒</span>Field Log</button>
-  <button data-tab="notes"><span class="ic">✎</span>Notes</button>
-  <button data-tab="export"><span class="ic">⇪</span>Export</button>
+  <button data-tab="entry"><span class="ic">📋</span>Entry</button>
+  <button data-tab="photos"><span class="ic">📷</span>Photos</button>
+  <button data-tab="log"><span class="ic">🗒️</span>Log</button>
+  <button data-tab="notes"><span class="ic">📝</span>Notes</button>
+  <button data-tab="save"><span class="ic">💾</span>Save</button>
 </nav>
 <input type="file" id="fileIn" accept=".csv,text/csv" class="hidden" />
+<input type="file" id="photoIn" accept="image/*" capture="environment" class="hidden" />
 
 <script>
 'use strict';
-/* ARIS Field — offline field data collection.
-   All data lives in THIS device's localStorage; nothing is sent anywhere.
-   Export CSVs and email/AirDrop them; the desktop ARIS Assessment Entry
-   page imports the assessment CSV (values merge by plot number). */
+/* ARIS Field v1.1 — offline field data collection.
+   Everything is stored on THIS device (localStorage + IndexedDB for photos/voice);
+   nothing is uploaded anywhere. Use the Save tab to share your data:
+   either one bundle file (data + photos + voice memos) that desktop ARIS imports
+   directly, or plain CSVs. */
 
+const APP_VERSION = '1.1';
 const LS = 'arisField.v1';
 const S = load();
 function load() {
@@ -108,12 +130,74 @@ function load() {
   return { trials: [], currentId: null };
 }
 function save() { localStorage.setItem(LS, JSON.stringify(S)); }
-const uid = () => 't-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+const uid = (p) => (p || 'id') + '-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 const cur = () => S.trials.find(t => t.id === S.currentId) || null;
-const esc = (s) => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const csvCell = (v) => { const s = String(v ?? ''); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
+const fmtTs = (iso) => iso.slice(0, 16).replace('T', ' ');
 
-/* ── CSV ───────────────────────────────────────────── */
+/* ── IndexedDB for photos + voice memos ─────────────── */
+let dbP = null;
+function idb() {
+  if (dbP) return dbP;
+  dbP = new Promise((res, rej) => {
+    const r = indexedDB.open('arisFieldMedia', 1);
+    r.onupgradeneeded = () => { r.result.createObjectStore('media', { keyPath: 'id' }).createIndex('trial', 'trialId'); };
+    r.onsuccess = () => res(r.result);
+    r.onerror = () => rej(r.error);
+  });
+  return dbP;
+}
+async function mediaPut(rec) {
+  const db = await idb();
+  return new Promise((res, rej) => {
+    const tx = db.transaction('media', 'readwrite');
+    tx.objectStore('media').put(rec);
+    tx.oncomplete = res; tx.onerror = () => rej(tx.error);
+  });
+}
+async function mediaList(trialId, kind) {
+  const db = await idb();
+  return new Promise((res, rej) => {
+    const out = [];
+    const req = db.transaction('media').objectStore('media').index('trial').openCursor(IDBKeyRange.only(trialId));
+    req.onsuccess = () => {
+      const c = req.result;
+      if (!c) { res(out.filter(m => !kind || m.kind === kind).sort((a, b) => a.ts.localeCompare(b.ts))); return; }
+      out.push(c.value); c.continue();
+    };
+    req.onerror = () => rej(req.error);
+  });
+}
+async function mediaDelete(id) {
+  const db = await idb();
+  return new Promise((res, rej) => {
+    const tx = db.transaction('media', 'readwrite');
+    tx.objectStore('media').delete(id);
+    tx.oncomplete = res; tx.onerror = () => rej(tx.error);
+  });
+}
+const blobToB64 = (blob) => new Promise((res, rej) => {
+  const r = new FileReader();
+  r.onload = () => res(String(r.result).split(',')[1] ?? '');
+  r.onerror = () => rej(r.error);
+  r.readAsDataURL(blob);
+});
+/* Downscale a photo to ≤1400px JPEG so bundles stay email-sized. */
+async function shrinkPhoto(file) {
+  const url = URL.createObjectURL(file);
+  try {
+    const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = url; });
+    const scale = Math.min(1, 1400 / Math.max(img.width, img.height));
+    const w = Math.round(img.width * scale), h = Math.round(img.height * scale);
+    const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
+    cv.getContext('2d').drawImage(img, 0, 0, w, h);
+    const blob = await new Promise(res => cv.toBlob(res, 'image/jpeg', 0.82));
+    return blob || file;
+  } catch (e) { return file; } finally { URL.revokeObjectURL(url); }
+}
+
+/* ── CSV + bundle building ──────────────────────────── */
 function parseLine(line) {
   const out = []; let curS = '', inQ = false;
   for (let i = 0; i < line.length; i++) {
@@ -125,7 +209,6 @@ function parseLine(line) {
   }
   out.push(curS); return out;
 }
-/* Template = the CSV the desktop Assessment Entry exports (Plot,Rep,Trt,variables…). */
 function trialFromTemplate(name, text) {
   const lines = text.split(/\r?\n/).filter(l => l.trim() !== '');
   if (lines.length < 2) throw new Error('That CSV has no plot rows.');
@@ -139,15 +222,15 @@ function trialFromTemplate(name, text) {
     return { plot: Number(c[0]), rep: (c[1] ?? '').trim(), trt: (c[2] ?? '').trim(), vals };
   }).filter(p => isFinite(p.plot));
   if (!plots.length) throw new Error('No valid plot rows found.');
-  return { id: uid(), name, cols, plots, log: [], notes: [] };
+  return { id: uid('t'), name, cols, plots, log: [], notes: [] };
 }
 function trialQuickSetup(name, colsStr, trtsStr, reps) {
   const cols = colsStr.split(',').map(s => s.trim()).filter(Boolean);
   const trts = trtsStr.split(',').map(s => s.trim()).filter(Boolean);
-  if (!cols.length || !trts.length || !(reps > 0)) throw new Error('Fill in variables, treatments and reps.');
+  if (!cols.length || !trts.length || !(reps > 0)) throw new Error('Please fill in variables, treatments and replications.');
   const plots = []; let n = 1;
   for (let r = 1; r <= reps; r++) for (const trt of trts) plots.push({ plot: n++, rep: 'R' + r, trt, vals: {} });
-  return { id: uid(), name, cols, plots, log: [], notes: [] };
+  return { id: uid('t'), name, cols, plots, log: [], notes: [] };
 }
 function assessmentCSV(t) {
   const rows = [['Plot','Rep','Trt', ...t.cols].map(csvCell).join(',')];
@@ -164,27 +247,48 @@ function notesCSV(t) {
   for (const e of t.notes) rows.push([e.ts, csvCell(e.text)].join(','));
   return rows.join('\n');
 }
-async function exportCSV(filename, content) {
-  const file = new File([content], filename, { type: 'text/csv' });
+async function buildBundle(t) {
+  const media = await mediaList(t.id);
+  const photos = [], voice = [];
+  for (const m of media) {
+    const rec = { ts: m.ts, caption: m.caption || '', mime: m.mime, dataB64: await blobToB64(m.blob) };
+    if (m.kind === 'photo') photos.push({ ...rec, plot: m.plot || '' });
+    else voice.push(rec);
+  }
+  return JSON.stringify({
+    format: 'aris-field-bundle', version: 1, exportedAt: new Date().toISOString(),
+    trial: { name: t.name }, cols: t.cols, plots: t.plots,
+    log: t.log, notes: t.notes, photos, voice,
+  });
+}
+async function shareFile(filename, content, mime) {
+  const file = new File([content], filename, { type: mime });
   if (navigator.canShare && navigator.canShare({ files: [file] })) {
     try { await navigator.share({ files: [file], title: filename }); return; } catch (e) { if (e.name === 'AbortError') return; }
   }
   const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob([content], { type: 'text/csv' }));
+  a.href = URL.createObjectURL(new Blob([content], { type: mime }));
   a.download = filename; a.click(); URL.revokeObjectURL(a.href);
 }
 
-/* ── views ─────────────────────────────────────────── */
+/* ── app shell / routing ────────────────────────────── */
 const main = document.getElementById('main');
 const tabs = document.getElementById('tabs');
 const backBtn = document.getElementById('backBtn');
 const titleEl = document.getElementById('title');
 const fileIn = document.getElementById('fileIn');
+const photoIn = document.getElementById('photoIn');
 let view = S.currentId ? 'entry' : 'home';
 let plotIdx = 0;
 let flash = null;
+let delConfirm = null;
+let objectUrls = [];
+function freeUrls() { objectUrls.forEach(u => URL.revokeObjectURL(u)); objectUrls = []; }
+function objUrl(blob) { const u = URL.createObjectURL(blob); objectUrls.push(u); return u; }
 
 function render() {
+  freeUrls();
+  stopRecorder(false);
   const t = cur();
   if (!t) view = 'home';
   tabs.classList.toggle('hidden', view === 'home');
@@ -193,12 +297,14 @@ function render() {
   tabs.querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.tab === view));
   if (view === 'home') renderHome();
   else if (view === 'entry') renderEntry(t);
+  else if (view === 'photos') renderPhotos(t);
   else if (view === 'log') renderList(t, 'log');
-  else if (view === 'notes') renderList(t, 'notes');
-  else if (view === 'export') renderExport(t);
+  else if (view === 'notes') renderNotes(t);
+  else if (view === 'save') renderSave(t);
   if (flash) { const n = document.createElement('div'); n.className = 'note' + (flash.err ? ' err' : ''); n.textContent = flash.text; main.prepend(n); flash = null; }
 }
 
+/* ── home ───────────────────────────────────────────── */
 function renderHome() {
   main.innerHTML = `
     <div class="card"><h2>Trials on this phone</h2><div id="trials">${
@@ -206,19 +312,19 @@ function renderHome() {
     }</div></div>
     <div class="card">
       <h2>Start from a desktop CSV (recommended)</h2>
-      <p class="muted">On desktop ARIS: Assessment Entry → ⬇ CSV → email/AirDrop the file to this phone, then load it here. Plot numbers will match the desktop exactly.</p>
+      <p class="muted">On the computer: open ARIS → Assessment Entry → press ⬇ CSV, then email or AirDrop that file to this phone and load it here. Your plot numbers will match the desktop exactly.</p>
       <button class="btn" id="importTpl">Load trial from CSV…</button>
     </div>
     <div class="card">
-      <h2>Quick setup (manual)</h2>
+      <h2>Quick setup (no computer needed)</h2>
       <label class="f">Trial name<input type="text" id="qsName" placeholder="e.g. Watsonville T3" /></label>
-      <label class="f">Variables, comma-separated<input type="text" id="qsCols" placeholder="Botrytis Incidence, Botrytis Severity, Yield" /></label>
-      <label class="f">Treatments, comma-separated<input type="text" id="qsTrts" placeholder="C, 1, 2, 3, 4" /></label>
-      <label class="f">Replications<input type="text" inputmode="numeric" id="qsReps" placeholder="4" /></label>
+      <label class="f">Variables to measure, separated by commas<input type="text" id="qsCols" placeholder="e.g. Disease Severity, Disease Incidence, Yield" /></label>
+      <label class="f">Treatments, separated by commas<input type="text" id="qsTrts" placeholder="e.g. C, 1, 2, 3, 4" /></label>
+      <label class="f">Replications<input type="text" inputmode="numeric" id="qsReps" placeholder="e.g. 4" /></label>
       <button class="btn secondary" id="qsGo">Create trial</button>
-      <p class="muted" style="margin-top:8px">Note: manual plots are numbered in order, which may not match the desktop's randomized layout — prefer the CSV route when the trial exists on desktop.</p>
+      <p class="muted" style="margin-top:8px">Plots are numbered in order (Rep 1 first). If this trial also exists on the desktop with a randomized layout, use the CSV option above instead so plot numbers line up.</p>
     </div>
-    <p class="muted" style="text-align:center">All data stays on this phone until you export it. v1.0</p>`;
+    <p class="muted center">All data stays on this phone until you share it from the Save tab. · v${APP_VERSION}</p>`;
   const list = main.querySelector('#trials');
   S.trials.forEach(t => {
     const filled = t.plots.reduce((s, p) => s + Object.keys(p.vals).length, 0);
@@ -233,14 +339,25 @@ function renderHome() {
     const open = e.target.dataset.open, del = e.target.dataset.del;
     if (open) { S.currentId = open; plotIdx = 0; save(); view = 'entry'; render(); }
     if (del) {
-      const t = S.trials.find(x => x.id === del);
-      if (delConfirm === del) { S.trials = S.trials.filter(x => x.id !== del); if (S.currentId === del) S.currentId = null; delConfirm = null; save(); render(); }
-      else { delConfirm = del; e.target.textContent = 'Delete ' + t.name + '?'; setTimeout(() => { delConfirm = null; render(); }, 4000); }
+      if (delConfirm === del) {
+        S.trials = S.trials.filter(x => x.id !== del);
+        if (S.currentId === del) S.currentId = null;
+        delConfirm = null; save();
+        mediaList(del).then(ms => ms.forEach(m => mediaDelete(m.id)));
+        render();
+      } else {
+        delConfirm = del;
+        e.target.textContent = 'Tap again to delete';
+        setTimeout(() => { if (delConfirm === del) { delConfirm = null; render(); } }, 4000);
+      }
     }
   };
   main.querySelector('#importTpl').onclick = () => pickFile((name, text) => {
-    try { const t = trialFromTemplate(name.replace(/\.csv$/i, ''), text); S.trials.push(t); S.currentId = t.id; plotIdx = 0; save(); view = 'entry'; flash = { text: 'Loaded ' + t.plots.length + ' plots × ' + t.cols.length + ' variables.' }; }
-    catch (err) { flash = { text: err.message, err: true }; }
+    try {
+      const t = trialFromTemplate(name.replace(/\.csv$/i, ''), text);
+      S.trials.push(t); S.currentId = t.id; plotIdx = 0; save(); view = 'entry';
+      flash = { text: 'Loaded ' + t.plots.length + ' plots with ' + t.cols.length + ' variables.' };
+    } catch (err) { flash = { text: err.message, err: true }; }
     render();
   });
   main.querySelector('#qsGo').onclick = () => {
@@ -255,26 +372,26 @@ function renderHome() {
     render();
   };
 }
-let delConfirm = null;
 
+/* ── entry ──────────────────────────────────────────── */
 function renderEntry(t) {
   plotIdx = Math.max(0, Math.min(plotIdx, t.plots.length - 1));
   const p = t.plots[plotIdx];
   const done = t.plots.filter(x => Object.keys(x.vals).length > 0).length;
   main.innerHTML = `
     <div class="card">
-      <div class="plotHead"><span class="num">Plot ${p.plot}</span><span class="meta">${esc(p.rep)} · Trt ${esc(p.trt)}</span></div>
+      <div class="plotHead"><span class="num">Plot ${p.plot}</span><span class="meta">${esc(p.rep)} · Treatment ${esc(p.trt)}</span></div>
       <div id="vals"></div>
       <div class="stepBar">
-        <button class="btn secondary" id="prev" ${plotIdx === 0 ? 'disabled' : ''}>‹ Prev</button>
+        <button class="btn secondary" id="prev" ${plotIdx === 0 ? 'disabled' : ''}>‹ Previous</button>
         <button class="btn" id="next" ${plotIdx === t.plots.length - 1 ? 'disabled' : ''}>Next ›</button>
       </div>
-      <div class="progress muted">${plotIdx + 1} of ${t.plots.length} plots · ${done} have data</div>
-      <label class="f">Jump to plot
+      <div class="progress muted">Plot ${plotIdx + 1} of ${t.plots.length} · ${done} plot${done === 1 ? ' has' : 's have'} data</div>
+      <label class="f">Jump to a plot
         <select id="jump">${t.plots.map((x, i) => `<option value="${i}" ${i === plotIdx ? 'selected' : ''}>Plot ${x.plot} — ${esc(x.rep)} · Trt ${esc(x.trt)}</option>`).join('')}</select>
       </label>
     </div>
-    <p class="muted" style="text-align:center">Leave a box empty when there's no data point — that's fine.</p>`;
+    <p class="muted center">It's fine to leave a box empty when there's no data point for it.</p>`;
   const vals = main.querySelector('#vals');
   t.cols.forEach((c, i) => {
     const row = document.createElement('div');
@@ -294,53 +411,227 @@ function renderEntry(t) {
   main.querySelector('#jump').onchange = (e) => { plotIdx = Number(e.target.value); render(); };
 }
 
-const LOG_TYPES = ['Spray / Application', 'Irrigation', 'Scouting', 'Assessment', 'Harvest', 'Other'];
-function renderList(t, kind) {
-  const isLog = kind === 'log';
+/* ── photos ─────────────────────────────────────────── */
+function renderPhotos(t) {
   main.innerHTML = `
     <div class="card">
-      <h2>${isLog ? 'New field log entry' : 'New note'}</h2>
-      ${isLog ? `<label class="f">Type<select id="lt">${LOG_TYPES.map(x => `<option>${x}</option>`).join('')}</select></label>` : ''}
-      <label class="f">${isLog ? 'What was done' : 'Note'}<textarea id="txt" rows="3" placeholder="${isLog ? 'e.g. Applied Switch 62.5WG at full bloom, all reps' : 'e.g. Heavy fog until 10am, rows 3–4 still wet'}"></textarea></label>
-      <button class="btn" id="add">Add ${isLog ? 'entry' : 'note'}</button>
+      <h2>Add a photo</h2>
+      <label class="f">Plot number (optional)<input type="text" inputmode="numeric" id="phPlot" placeholder="e.g. 12" /></label>
+      <label class="f">Caption (optional)<input type="text" id="phCap" placeholder="e.g. Botrytis on ripe fruit, north end" /></label>
+      <button class="btn" id="phAdd">📷 Take or choose photo</button>
+      <p class="muted" style="margin-top:8px">Photos are resized on the phone so your export file stays small enough to email.</p>
     </div>
-    <div class="card"><h2>${isLog ? 'Field log' : 'Notes'} (${t[kind].length})</h2><div id="list">${t[kind].length ? '' : '<p class="muted">Nothing yet.</p>'}</div></div>`;
+    <div class="card"><h2>Photos <span class="muted" id="phCount"></span></h2><div class="photoGrid" id="phGrid"></div><p class="muted hidden" id="phEmpty">No photos yet.</p></div>`;
+  main.querySelector('#phAdd').onclick = () => {
+    photoIn.onchange = async () => {
+      const f = photoIn.files[0]; photoIn.value = '';
+      if (!f) return;
+      const blob = await shrinkPhoto(f);
+      await mediaPut({
+        id: uid('ph'), trialId: t.id, kind: 'photo', ts: new Date().toISOString(),
+        plot: main.querySelector('#phPlot')?.value.trim() ?? '',
+        caption: main.querySelector('#phCap')?.value.trim() ?? '',
+        mime: blob.type || 'image/jpeg', blob,
+      });
+      flash = { text: 'Photo saved on this phone.' };
+      render();
+    };
+    photoIn.click();
+  };
+  paintPhotos(t);
+}
+async function paintPhotos(t) {
+  const grid = main.querySelector('#phGrid');
+  if (!grid) return;
+  const photos = await mediaList(t.id, 'photo');
+  const count = main.querySelector('#phCount');
+  if (count) count.textContent = '(' + photos.length + ')';
+  main.querySelector('#phEmpty')?.classList.toggle('hidden', photos.length > 0);
+  grid.innerHTML = '';
+  [...photos].reverse().forEach(ph => {
+    const div = document.createElement('div');
+    div.className = 'photoCard';
+    div.innerHTML = `<img src="${objUrl(ph.blob)}" alt="${esc(ph.caption || 'Field photo')}" />
+      <div class="pc">${fmtTs(ph.ts)}${ph.plot ? ' · Plot ' + esc(ph.plot) : ''}${ph.caption ? '<br>' + esc(ph.caption) : ''}</div>
+      <button class="del" data-id="${ph.id}">Remove</button>`;
+    grid.appendChild(div);
+  });
+  grid.onclick = async (e) => {
+    const id = e.target.dataset.id;
+    if (id) { await mediaDelete(id); paintPhotos(t); }
+  };
+}
+
+/* ── field log ──────────────────────────────────────── */
+const LOG_TYPES = ['Spray / Application', 'Irrigation', 'Scouting', 'Assessment', 'Harvest', 'Other'];
+function renderList(t, kind) {
+  main.innerHTML = `
+    <div class="card">
+      <h2>New field log entry</h2>
+      <label class="f">Type<select id="lt">${LOG_TYPES.map(x => `<option>${x}</option>`).join('')}</select></label>
+      <label class="f">What was done<textarea id="txt" rows="3" placeholder="e.g. Applied Switch 62.5WG at full bloom, all reps"></textarea></label>
+      <button class="btn" id="add">Add entry</button>
+    </div>
+    <div class="card"><h2>Field log (${t.log.length})</h2><div id="list">${t.log.length ? '' : '<p class="muted">Nothing logged yet.</p>'}</div></div>`;
+  paintItems(t, 'log');
+  main.querySelector('#add').onclick = () => {
+    const text = main.querySelector('#txt').value.trim();
+    if (!text) return;
+    t.log.push({ ts: new Date().toISOString(), type: main.querySelector('#lt').value, text });
+    save(); render();
+  };
+}
+function paintItems(t, kind) {
   const list = main.querySelector('#list');
   [...t[kind]].reverse().forEach((e, ri) => {
     const idx = t[kind].length - 1 - ri;
     const div = document.createElement('div');
     div.className = 'item';
-    div.innerHTML = `<button class="del" data-i="${idx}">✕</button><div class="ts">${e.ts.slice(0, 16).replace('T', ' ')}${e.type ? ' · ' + esc(e.type) : ''}</div><div>${esc(e.text)}</div>`;
+    div.innerHTML = `<button class="del" data-i="${idx}">✕</button><div class="ts">${fmtTs(e.ts)}${e.type ? ' · ' + esc(e.type) : ''}</div><div>${esc(e.text)}</div>`;
     list.appendChild(div);
   });
   list.onclick = (e) => { const i = e.target.dataset.i; if (i != null) { t[kind].splice(Number(i), 1); save(); render(); } };
+}
+
+/* ── notes + voice memos ────────────────────────────── */
+let recorder = null;
+let recChunks = [];
+function stopRecorder(keep) {
+  if (recorder && recorder.state !== 'inactive') {
+    if (!keep) recorder.onstop = null;
+    recorder.stop();
+    recorder.stream?.getTracks().forEach(tr => tr.stop());
+  }
+  if (!keep) recorder = null;
+}
+function renderNotes(t) {
+  const canRecord = !!(navigator.mediaDevices?.getUserMedia && window.MediaRecorder);
+  main.innerHTML = `
+    <div class="card">
+      <h2>New note</h2>
+      <label class="f">Note<textarea id="txt" rows="3" placeholder="e.g. Heavy fog until 10am, rows 3 and 4 still wet"></textarea></label>
+      <button class="btn" id="add">Add note</button>
+    </div>
+    <div class="card">
+      <h2>Voice memos <span class="muted" id="vmCount"></span></h2>
+      ${canRecord
+        ? `<label class="f">Caption for the next recording (optional)<input type="text" id="vmCap" placeholder="e.g. Plot 12 disease check" /></label>
+           <button class="btn secondary" id="rec">🎙️ Start recording</button>`
+        : '<p class="muted">Voice recording isn’t available in this browser. It works once the app is opened in Safari on an iPhone.</p>'}
+      <div id="vmList"></div>
+    </div>
+    <div class="card"><h2>Notes (${t.notes.length})</h2><div id="list">${t.notes.length ? '' : '<p class="muted">No notes yet.</p>'}</div></div>`;
+  const list = main.querySelector('#list');
+  [...t.notes].reverse().forEach((e, ri) => {
+    const idx = t.notes.length - 1 - ri;
+    const div = document.createElement('div');
+    div.className = 'item';
+    div.innerHTML = `<button class="del" data-i="${idx}">✕</button><div class="ts">${fmtTs(e.ts)}</div><div>${esc(e.text)}</div>`;
+    list.appendChild(div);
+  });
+  list.onclick = (e) => { const i = e.target.dataset.i; if (i != null) { t.notes.splice(Number(i), 1); save(); render(); } };
   main.querySelector('#add').onclick = () => {
     const text = main.querySelector('#txt').value.trim();
     if (!text) return;
-    const entry = { ts: new Date().toISOString(), text };
-    if (isLog) entry.type = main.querySelector('#lt').value;
-    t[kind].push(entry); save(); render();
+    t.notes.push({ ts: new Date().toISOString(), text });
+    save(); render();
+  };
+  const recBtn = main.querySelector('#rec');
+  if (recBtn) recBtn.onclick = async () => {
+    if (recorder && recorder.state === 'recording') { stopRecorder(true); return; }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mime = MediaRecorder.isTypeSupported('audio/mp4') ? 'audio/mp4'
+        : MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : '';
+      recorder = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
+      recChunks = [];
+      recorder.ondataavailable = (e) => { if (e.data.size) recChunks.push(e.data); };
+      recorder.onstop = async () => {
+        const blob = new Blob(recChunks, { type: recorder.mimeType || 'audio/mp4' });
+        stream.getTracks().forEach(tr => tr.stop());
+        await mediaPut({
+          id: uid('vm'), trialId: t.id, kind: 'voice', ts: new Date().toISOString(),
+          caption: main.querySelector('#vmCap')?.value.trim() ?? '',
+          mime: blob.type || 'audio/mp4', blob,
+        });
+        recorder = null;
+        flash = { text: 'Voice memo saved on this phone.' };
+        render();
+      };
+      recorder.start();
+      recBtn.innerHTML = '<span class="recDot"></span>Recording… tap to stop';
+      recBtn.classList.remove('secondary');
+    } catch (err) {
+      flash = { text: 'Microphone unavailable: ' + (err.message || err.name), err: true };
+      render();
+    }
+  };
+  paintVoice(t);
+}
+async function paintVoice(t) {
+  const list = main.querySelector('#vmList');
+  if (!list) return;
+  const memos = await mediaList(t.id, 'voice');
+  const count = main.querySelector('#vmCount');
+  if (count) count.textContent = '(' + memos.length + ')';
+  list.innerHTML = '';
+  [...memos].reverse().forEach(m => {
+    const div = document.createElement('div');
+    div.className = 'item memo';
+    div.innerHTML = `<button class="del" data-id="${m.id}">✕</button>
+      <div class="ts">${fmtTs(m.ts)}${m.caption ? ' · ' + esc(m.caption) : ''}</div>
+      <audio controls src="${objUrl(m.blob)}"></audio>`;
+    list.appendChild(div);
+  });
+  list.onclick = async (e) => {
+    const id = e.target.dataset.id;
+    if (id) { await mediaDelete(id); paintVoice(t); }
   };
 }
 
-function renderExport(t) {
+/* ── save / export ──────────────────────────────────── */
+function renderSave(t) {
   const filled = t.plots.reduce((s, p) => s + Object.keys(p.vals).length, 0);
   const stem = t.name.replace(/[^\w.-]+/g, '_');
   main.innerHTML = `
     <div class="card">
-      <h2>Assessment data</h2>
-      <p class="muted">${filled} values across ${t.plots.length} plots. The CSV matches desktop ARIS — on the computer open Assessment Entry for this trial and press ⬆ Import CSV.</p>
-      <button class="btn" id="exA">Share assessment CSV</button>
+      <h2>Save everything as one file</h2>
+      <p class="muted">One bundle with your entered values, field log, notes, photos and voice memos. Email or AirDrop it to the computer, then in desktop ARIS open Assessment Entry and press <b>⬆ Import field data</b>.</p>
+      <button class="btn" id="exBundle">💾 Save bundle (one file)</button>
+      <p class="muted center" id="bundleInfo" style="margin-top:8px"></p>
     </div>
     <div class="card">
-      <h2>Field log & notes</h2>
-      <button class="btn secondary small" id="exL" ${t.log.length ? '' : 'disabled'}>Share field log CSV (${t.log.length})</button>
-      <button class="btn secondary small" id="exN" ${t.notes.length ? '' : 'disabled'}>Share notes CSV (${t.notes.length})</button>
+      <h2>Or save pieces as plain CSV</h2>
+      <button class="btn secondary small" id="exA">Assessment data — ${filled} values in ${t.plots.length} plots</button>
+      <button class="btn secondary small" id="exL" ${t.log.length ? '' : 'disabled'}>Field log (${t.log.length})</button>
+      <button class="btn secondary small" id="exN" ${t.notes.length ? '' : 'disabled'}>Notes (${t.notes.length})</button>
     </div>
-    <p class="muted" style="text-align:center">Sharing opens the iPhone share sheet — pick Mail, AirDrop, or Save to Files. Data also stays saved on this phone.</p>`;
-  main.querySelector('#exA').onclick = () => exportCSV(stem + '_assessment.csv', assessmentCSV(t));
-  main.querySelector('#exL').onclick = () => exportCSV(stem + '_fieldlog.csv', logCSV(t));
-  main.querySelector('#exN').onclick = () => exportCSV(stem + '_notes.csv', notesCSV(t));
+    <p class="muted center">Saving opens the share sheet — choose Mail, AirDrop, or Save to Files. Everything also stays on this phone.</p>`;
+  mediaList(t.id).then(ms => {
+    const ph = ms.filter(m => m.kind === 'photo').length;
+    const vm = ms.filter(m => m.kind === 'voice').length;
+    const info = main.querySelector('#bundleInfo');
+    const n = (c, one, many) => c + ' ' + (c === 1 ? one : many);
+    if (info) info.textContent = 'Bundle will include ' + [
+      n(filled, 'value', 'values'), n(t.log.length, 'log entry', 'log entries'),
+      n(t.notes.length, 'note', 'notes'), n(ph, 'photo', 'photos'), n(vm, 'voice memo', 'voice memos'),
+    ].join(', ') + '.';
+  });
+  main.querySelector('#exBundle').onclick = async (e) => {
+    const btn = e.target;
+    btn.disabled = true; btn.textContent = 'Packing…';
+    try {
+      const json = await buildBundle(t);
+      await shareFile(stem + '_field_bundle.json', json, 'application/json');
+    } catch (err) {
+      flash = { text: 'Could not build the bundle: ' + (err.message || err.name), err: true };
+      render(); return;
+    }
+    btn.disabled = false; btn.textContent = '💾 Save bundle (one file)';
+  };
+  main.querySelector('#exA').onclick = () => shareFile(stem + '_assessment.csv', assessmentCSV(t), 'text/csv');
+  main.querySelector('#exL').onclick = () => shareFile(stem + '_fieldlog.csv', logCSV(t), 'text/csv');
+  main.querySelector('#exN').onclick = () => shareFile(stem + '_notes.csv', notesCSV(t), 'text/csv');
 }
 
 function pickFile(cb) {
