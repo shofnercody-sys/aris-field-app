@@ -1,0 +1,364 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+<title>ARIS Field</title>
+<meta name="description" content="Offline field data collection for agricultural research trials." />
+<link rel="manifest" href="manifest.webmanifest" />
+<link rel="apple-touch-icon" href="icon-180.png" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="ARIS Field" />
+<meta name="theme-color" content="#1e3a5f" />
+<style>
+  :root {
+    --navy: #1e3a5f; --green: #2e7d32; --bg: #f4f6f9; --card: #ffffff;
+    --ink: #0f172a; --muted: #64748b; --line: #e2e8f0; --red: #b91c1c;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { height: 100%; }
+  body {
+    font: 16px/1.45 -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg); color: var(--ink);
+    padding-bottom: calc(64px + env(safe-area-inset-bottom));
+  }
+  header.app {
+    background: var(--navy); color: #fff; padding: calc(10px + env(safe-area-inset-top)) 16px 10px;
+    display: flex; align-items: center; gap: 10px; position: sticky; top: 0; z-index: 5;
+  }
+  header.app h1 { font-size: 17px; font-weight: 700; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  header.app button { background: rgba(255,255,255,.14); color: #fff; border: 0; border-radius: 8px; padding: 7px 11px; font-size: 14px; }
+  main { padding: 14px; max-width: 560px; margin: 0 auto; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px; margin-bottom: 12px; }
+  .card h2 { font-size: 15px; margin-bottom: 8px; }
+  .muted { color: var(--muted); font-size: 13px; }
+  .btn {
+    display: block; width: 100%; text-align: center; background: var(--green); color: #fff;
+    border: 0; border-radius: 10px; padding: 13px; font-size: 16px; font-weight: 600; margin-top: 8px;
+  }
+  .btn.secondary { background: #e2e8f0; color: var(--ink); font-weight: 500; }
+  .btn.small { padding: 9px; font-size: 14px; margin-top: 6px; }
+  .btn:disabled { opacity: .45; }
+  input[type="text"], textarea, select {
+    width: 100%; border: 1px solid var(--line); border-radius: 9px; padding: 11px; font-size: 16px; background: #fff; color: var(--ink);
+  }
+  label.f { display: block; margin-top: 10px; font-size: 13px; color: var(--muted); }
+  label.f > * { margin-top: 4px; }
+  /* trial list */
+  .trialRow { display: flex; align-items: center; gap: 10px; padding: 12px 4px; border-bottom: 1px solid var(--line); }
+  .trialRow:last-child { border-bottom: 0; }
+  .trialRow .grow { flex: 1; min-width: 0; }
+  .trialRow .name { font-weight: 600; }
+  .trialRow button { border: 0; background: #eef2f7; border-radius: 8px; padding: 8px 12px; font-size: 14px; }
+  /* entry */
+  .plotHead { display: flex; align-items: baseline; gap: 10px; }
+  .plotHead .num { font-size: 30px; font-weight: 800; }
+  .plotHead .meta { font-size: 15px; color: var(--muted); }
+  .valRow { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
+  .valRow .lbl { flex: 1; font-size: 14px; }
+  .valRow input { width: 128px; text-align: right; font-size: 20px; padding: 12px 10px; }
+  .stepBar { display: flex; gap: 8px; margin-top: 12px; }
+  .stepBar button { flex: 1; }
+  .progress { text-align: center; margin-top: 8px; }
+  /* lists */
+  .item { padding: 10px 2px; border-bottom: 1px solid var(--line); }
+  .item:last-child { border-bottom: 0; }
+  .item .ts { font-size: 12px; color: var(--muted); }
+  .item .del { float: right; border: 0; background: none; color: var(--red); font-size: 14px; padding: 2px 6px; }
+  /* tab bar */
+  nav.tabs {
+    position: fixed; left: 0; right: 0; bottom: 0; display: flex; background: #fff;
+    border-top: 1px solid var(--line); padding-bottom: env(safe-area-inset-bottom); z-index: 5;
+  }
+  nav.tabs button { flex: 1; border: 0; background: none; padding: 10px 4px 8px; font-size: 12.5px; color: var(--muted); }
+  nav.tabs button.on { color: var(--green); font-weight: 700; }
+  nav.tabs .ic { display: block; font-size: 20px; line-height: 1.15; }
+  .note { background: #f0fdf4; border: 1px solid #bbf7d0; color: #166534; border-radius: 9px; padding: 9px 11px; font-size: 13.5px; margin-bottom: 10px; }
+  .err { background: #fef2f2; border-color: #fecaca; color: var(--red); }
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+<header class="app">
+  <h1 id="title">ARIS Field</h1>
+  <button id="backBtn" class="hidden">Trials</button>
+</header>
+<main id="main"></main>
+<nav class="tabs hidden" id="tabs">
+  <button data-tab="entry"><span class="ic">▦</span>Entry</button>
+  <button data-tab="log"><span class="ic">🗒</span>Field Log</button>
+  <button data-tab="notes"><span class="ic">✎</span>Notes</button>
+  <button data-tab="export"><span class="ic">⇪</span>Export</button>
+</nav>
+<input type="file" id="fileIn" accept=".csv,text/csv" class="hidden" />
+
+<script>
+'use strict';
+/* ARIS Field — offline field data collection.
+   All data lives in THIS device's localStorage; nothing is sent anywhere.
+   Export CSVs and email/AirDrop them; the desktop ARIS Assessment Entry
+   page imports the assessment CSV (values merge by plot number). */
+
+const LS = 'arisField.v1';
+const S = load();
+function load() {
+  try { const d = JSON.parse(localStorage.getItem(LS)); if (d && Array.isArray(d.trials)) return d; } catch (e) {}
+  return { trials: [], currentId: null };
+}
+function save() { localStorage.setItem(LS, JSON.stringify(S)); }
+const uid = () => 't-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+const cur = () => S.trials.find(t => t.id === S.currentId) || null;
+const esc = (s) => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const csvCell = (v) => { const s = String(v ?? ''); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
+
+/* ── CSV ───────────────────────────────────────────── */
+function parseLine(line) {
+  const out = []; let curS = '', inQ = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (inQ) { if (c === '"') { if (line[i+1] === '"') { curS += '"'; i++; } else inQ = false; } else curS += c; }
+    else if (c === '"') inQ = true;
+    else if (c === ',') { out.push(curS); curS = ''; }
+    else curS += c;
+  }
+  out.push(curS); return out;
+}
+/* Template = the CSV the desktop Assessment Entry exports (Plot,Rep,Trt,variables…). */
+function trialFromTemplate(name, text) {
+  const lines = text.split(/\r?\n/).filter(l => l.trim() !== '');
+  if (lines.length < 2) throw new Error('That CSV has no plot rows.');
+  const head = parseLine(lines[0]);
+  if (head.length < 4) throw new Error('Expected columns: plot, rep, treatment, then variables.');
+  const cols = head.slice(3).map(h => h.trim());
+  const plots = lines.slice(1).map(l => {
+    const c = parseLine(l);
+    const vals = {};
+    cols.forEach((_, i) => { const raw = (c[3+i] ?? '').trim(); if (raw !== '' && isFinite(Number(raw))) vals[i] = Number(raw); });
+    return { plot: Number(c[0]), rep: (c[1] ?? '').trim(), trt: (c[2] ?? '').trim(), vals };
+  }).filter(p => isFinite(p.plot));
+  if (!plots.length) throw new Error('No valid plot rows found.');
+  return { id: uid(), name, cols, plots, log: [], notes: [] };
+}
+function trialQuickSetup(name, colsStr, trtsStr, reps) {
+  const cols = colsStr.split(',').map(s => s.trim()).filter(Boolean);
+  const trts = trtsStr.split(',').map(s => s.trim()).filter(Boolean);
+  if (!cols.length || !trts.length || !(reps > 0)) throw new Error('Fill in variables, treatments and reps.');
+  const plots = []; let n = 1;
+  for (let r = 1; r <= reps; r++) for (const trt of trts) plots.push({ plot: n++, rep: 'R' + r, trt, vals: {} });
+  return { id: uid(), name, cols, plots, log: [], notes: [] };
+}
+function assessmentCSV(t) {
+  const rows = [['Plot','Rep','Trt', ...t.cols].map(csvCell).join(',')];
+  for (const p of t.plots) rows.push([p.plot, p.rep, p.trt, ...t.cols.map((_, i) => p.vals[i] ?? '')].map(csvCell).join(','));
+  return rows.join('\n');
+}
+function logCSV(t) {
+  const rows = ['Timestamp,Type,Activity'];
+  for (const e of t.log) rows.push([e.ts, e.type, csvCell(e.text)].join(','));
+  return rows.join('\n');
+}
+function notesCSV(t) {
+  const rows = ['Timestamp,Note'];
+  for (const e of t.notes) rows.push([e.ts, csvCell(e.text)].join(','));
+  return rows.join('\n');
+}
+async function exportCSV(filename, content) {
+  const file = new File([content], filename, { type: 'text/csv' });
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    try { await navigator.share({ files: [file], title: filename }); return; } catch (e) { if (e.name === 'AbortError') return; }
+  }
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([content], { type: 'text/csv' }));
+  a.download = filename; a.click(); URL.revokeObjectURL(a.href);
+}
+
+/* ── views ─────────────────────────────────────────── */
+const main = document.getElementById('main');
+const tabs = document.getElementById('tabs');
+const backBtn = document.getElementById('backBtn');
+const titleEl = document.getElementById('title');
+const fileIn = document.getElementById('fileIn');
+let view = S.currentId ? 'entry' : 'home';
+let plotIdx = 0;
+let flash = null;
+
+function render() {
+  const t = cur();
+  if (!t) view = 'home';
+  tabs.classList.toggle('hidden', view === 'home');
+  backBtn.classList.toggle('hidden', view === 'home');
+  titleEl.textContent = view === 'home' ? 'ARIS Field' : t.name;
+  tabs.querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.tab === view));
+  if (view === 'home') renderHome();
+  else if (view === 'entry') renderEntry(t);
+  else if (view === 'log') renderList(t, 'log');
+  else if (view === 'notes') renderList(t, 'notes');
+  else if (view === 'export') renderExport(t);
+  if (flash) { const n = document.createElement('div'); n.className = 'note' + (flash.err ? ' err' : ''); n.textContent = flash.text; main.prepend(n); flash = null; }
+}
+
+function renderHome() {
+  main.innerHTML = `
+    <div class="card"><h2>Trials on this phone</h2><div id="trials">${
+      S.trials.length ? '' : '<p class="muted">No trials yet — set one up below.</p>'
+    }</div></div>
+    <div class="card">
+      <h2>Start from a desktop CSV (recommended)</h2>
+      <p class="muted">On desktop ARIS: Assessment Entry → ⬇ CSV → email/AirDrop the file to this phone, then load it here. Plot numbers will match the desktop exactly.</p>
+      <button class="btn" id="importTpl">Load trial from CSV…</button>
+    </div>
+    <div class="card">
+      <h2>Quick setup (manual)</h2>
+      <label class="f">Trial name<input type="text" id="qsName" placeholder="e.g. Watsonville T3" /></label>
+      <label class="f">Variables, comma-separated<input type="text" id="qsCols" placeholder="Botrytis Incidence, Botrytis Severity, Yield" /></label>
+      <label class="f">Treatments, comma-separated<input type="text" id="qsTrts" placeholder="C, 1, 2, 3, 4" /></label>
+      <label class="f">Replications<input type="text" inputmode="numeric" id="qsReps" placeholder="4" /></label>
+      <button class="btn secondary" id="qsGo">Create trial</button>
+      <p class="muted" style="margin-top:8px">Note: manual plots are numbered in order, which may not match the desktop's randomized layout — prefer the CSV route when the trial exists on desktop.</p>
+    </div>
+    <p class="muted" style="text-align:center">All data stays on this phone until you export it. v1.0</p>`;
+  const list = main.querySelector('#trials');
+  S.trials.forEach(t => {
+    const filled = t.plots.reduce((s, p) => s + Object.keys(p.vals).length, 0);
+    const row = document.createElement('div');
+    row.className = 'trialRow';
+    row.innerHTML = `<div class="grow"><div class="name">${esc(t.name)}</div>
+      <div class="muted">${t.plots.length} plots · ${t.cols.length} variables · ${filled} values entered</div></div>
+      <button data-open="${t.id}">Open</button><button data-del="${t.id}" style="color:var(--red)">✕</button>`;
+    list.appendChild(row);
+  });
+  list.onclick = (e) => {
+    const open = e.target.dataset.open, del = e.target.dataset.del;
+    if (open) { S.currentId = open; plotIdx = 0; save(); view = 'entry'; render(); }
+    if (del) {
+      const t = S.trials.find(x => x.id === del);
+      if (delConfirm === del) { S.trials = S.trials.filter(x => x.id !== del); if (S.currentId === del) S.currentId = null; delConfirm = null; save(); render(); }
+      else { delConfirm = del; e.target.textContent = 'Delete ' + t.name + '?'; setTimeout(() => { delConfirm = null; render(); }, 4000); }
+    }
+  };
+  main.querySelector('#importTpl').onclick = () => pickFile((name, text) => {
+    try { const t = trialFromTemplate(name.replace(/\.csv$/i, ''), text); S.trials.push(t); S.currentId = t.id; plotIdx = 0; save(); view = 'entry'; flash = { text: 'Loaded ' + t.plots.length + ' plots × ' + t.cols.length + ' variables.' }; }
+    catch (err) { flash = { text: err.message, err: true }; }
+    render();
+  });
+  main.querySelector('#qsGo').onclick = () => {
+    try {
+      const t = trialQuickSetup(
+        main.querySelector('#qsName').value.trim() || 'Field trial',
+        main.querySelector('#qsCols').value, main.querySelector('#qsTrts').value,
+        Number(main.querySelector('#qsReps').value));
+      S.trials.push(t); S.currentId = t.id; plotIdx = 0; save(); view = 'entry';
+      flash = { text: 'Created ' + t.plots.length + ' plots.' };
+    } catch (err) { flash = { text: err.message, err: true }; }
+    render();
+  };
+}
+let delConfirm = null;
+
+function renderEntry(t) {
+  plotIdx = Math.max(0, Math.min(plotIdx, t.plots.length - 1));
+  const p = t.plots[plotIdx];
+  const done = t.plots.filter(x => Object.keys(x.vals).length > 0).length;
+  main.innerHTML = `
+    <div class="card">
+      <div class="plotHead"><span class="num">Plot ${p.plot}</span><span class="meta">${esc(p.rep)} · Trt ${esc(p.trt)}</span></div>
+      <div id="vals"></div>
+      <div class="stepBar">
+        <button class="btn secondary" id="prev" ${plotIdx === 0 ? 'disabled' : ''}>‹ Prev</button>
+        <button class="btn" id="next" ${plotIdx === t.plots.length - 1 ? 'disabled' : ''}>Next ›</button>
+      </div>
+      <div class="progress muted">${plotIdx + 1} of ${t.plots.length} plots · ${done} have data</div>
+      <label class="f">Jump to plot
+        <select id="jump">${t.plots.map((x, i) => `<option value="${i}" ${i === plotIdx ? 'selected' : ''}>Plot ${x.plot} — ${esc(x.rep)} · Trt ${esc(x.trt)}</option>`).join('')}</select>
+      </label>
+    </div>
+    <p class="muted" style="text-align:center">Leave a box empty when there's no data point — that's fine.</p>`;
+  const vals = main.querySelector('#vals');
+  t.cols.forEach((c, i) => {
+    const row = document.createElement('div');
+    row.className = 'valRow';
+    row.innerHTML = `<span class="lbl">${esc(c)}</span><input type="text" inputmode="decimal" value="${p.vals[i] ?? ''}" data-i="${i}" aria-label="${esc(c)}" />`;
+    vals.appendChild(row);
+  });
+  vals.oninput = (e) => {
+    const i = e.target.dataset.i; if (i == null) return;
+    const raw = e.target.value.trim();
+    if (raw === '') delete p.vals[i];
+    else { const n = Number(raw); if (isFinite(n)) p.vals[i] = n; }
+    save();
+  };
+  main.querySelector('#prev').onclick = () => { plotIdx--; render(); };
+  main.querySelector('#next').onclick = () => { plotIdx++; render(); };
+  main.querySelector('#jump').onchange = (e) => { plotIdx = Number(e.target.value); render(); };
+}
+
+const LOG_TYPES = ['Spray / Application', 'Irrigation', 'Scouting', 'Assessment', 'Harvest', 'Other'];
+function renderList(t, kind) {
+  const isLog = kind === 'log';
+  main.innerHTML = `
+    <div class="card">
+      <h2>${isLog ? 'New field log entry' : 'New note'}</h2>
+      ${isLog ? `<label class="f">Type<select id="lt">${LOG_TYPES.map(x => `<option>${x}</option>`).join('')}</select></label>` : ''}
+      <label class="f">${isLog ? 'What was done' : 'Note'}<textarea id="txt" rows="3" placeholder="${isLog ? 'e.g. Applied Switch 62.5WG at full bloom, all reps' : 'e.g. Heavy fog until 10am, rows 3–4 still wet'}"></textarea></label>
+      <button class="btn" id="add">Add ${isLog ? 'entry' : 'note'}</button>
+    </div>
+    <div class="card"><h2>${isLog ? 'Field log' : 'Notes'} (${t[kind].length})</h2><div id="list">${t[kind].length ? '' : '<p class="muted">Nothing yet.</p>'}</div></div>`;
+  const list = main.querySelector('#list');
+  [...t[kind]].reverse().forEach((e, ri) => {
+    const idx = t[kind].length - 1 - ri;
+    const div = document.createElement('div');
+    div.className = 'item';
+    div.innerHTML = `<button class="del" data-i="${idx}">✕</button><div class="ts">${e.ts.slice(0, 16).replace('T', ' ')}${e.type ? ' · ' + esc(e.type) : ''}</div><div>${esc(e.text)}</div>`;
+    list.appendChild(div);
+  });
+  list.onclick = (e) => { const i = e.target.dataset.i; if (i != null) { t[kind].splice(Number(i), 1); save(); render(); } };
+  main.querySelector('#add').onclick = () => {
+    const text = main.querySelector('#txt').value.trim();
+    if (!text) return;
+    const entry = { ts: new Date().toISOString(), text };
+    if (isLog) entry.type = main.querySelector('#lt').value;
+    t[kind].push(entry); save(); render();
+  };
+}
+
+function renderExport(t) {
+  const filled = t.plots.reduce((s, p) => s + Object.keys(p.vals).length, 0);
+  const stem = t.name.replace(/[^\w.-]+/g, '_');
+  main.innerHTML = `
+    <div class="card">
+      <h2>Assessment data</h2>
+      <p class="muted">${filled} values across ${t.plots.length} plots. The CSV matches desktop ARIS — on the computer open Assessment Entry for this trial and press ⬆ Import CSV.</p>
+      <button class="btn" id="exA">Share assessment CSV</button>
+    </div>
+    <div class="card">
+      <h2>Field log & notes</h2>
+      <button class="btn secondary small" id="exL" ${t.log.length ? '' : 'disabled'}>Share field log CSV (${t.log.length})</button>
+      <button class="btn secondary small" id="exN" ${t.notes.length ? '' : 'disabled'}>Share notes CSV (${t.notes.length})</button>
+    </div>
+    <p class="muted" style="text-align:center">Sharing opens the iPhone share sheet — pick Mail, AirDrop, or Save to Files. Data also stays saved on this phone.</p>`;
+  main.querySelector('#exA').onclick = () => exportCSV(stem + '_assessment.csv', assessmentCSV(t));
+  main.querySelector('#exL').onclick = () => exportCSV(stem + '_fieldlog.csv', logCSV(t));
+  main.querySelector('#exN').onclick = () => exportCSV(stem + '_notes.csv', notesCSV(t));
+}
+
+function pickFile(cb) {
+  fileIn.onchange = () => {
+    const f = fileIn.files[0]; fileIn.value = '';
+    if (!f) return;
+    const r = new FileReader();
+    r.onload = () => cb(f.name, String(r.result ?? ''));
+    r.readAsText(f);
+  };
+  fileIn.click();
+}
+
+tabs.onclick = (e) => { const b = e.target.closest('button'); if (b) { view = b.dataset.tab; render(); } };
+backBtn.onclick = () => { view = 'home'; render(); };
+render();
+
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
+</script>
+</body>
+</html>

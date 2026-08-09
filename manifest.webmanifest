@@ -1,0 +1,14 @@
+{
+  "name": "ARIS Field",
+  "short_name": "ARIS Field",
+  "description": "Offline field data collection for agricultural research trials. Data stays on your device; export CSV when you're done.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#1e3a5f",
+  "theme_color": "#1e3a5f",
+  "icons": [
+    { "src": "icon-180.png", "sizes": "180x180", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
