@@ -1,7 +1,7 @@
 /* ARIS Field service worker — makes the app work fully offline.
    Strategy: stale-while-revalidate for the shell (instant offline load, silent updates
    when online), cache-first for the immutable icons. Bump CACHE on breaking changes. */
-const CACHE = 'aris-field-v2';
+const CACHE = 'aris-field-v3';
 const SHELL = ['./', './index.html', './manifest.webmanifest', './icon-180.png', './icon-512.png'];
 
 self.addEventListener('install', (e) => {

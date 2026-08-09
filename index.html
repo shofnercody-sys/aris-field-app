@@ -70,6 +70,20 @@
   .stepBar { display: flex; gap: 8px; margin-top: 12px; }
   .stepBar .btn { flex: 1; margin-top: 0; }
   .progress { text-align: center; margin-top: 10px; }
+  /* entry grid view */
+  .modeRow { display: flex; gap: 8px; margin-bottom: 10px; }
+  .modeRow button { flex: 1; border: 1px solid var(--line); background: #fff; border-radius: 9px; padding: 9px; font-size: 14px; color: var(--muted); }
+  .modeRow button.on { border-color: var(--green); color: var(--green); font-weight: 700; background: #f0fdf4; }
+  .gridWrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; background: #fff; -webkit-overflow-scrolling: touch; }
+  table.sheet { border-collapse: collapse; }
+  .sheet th, .sheet td { border-bottom: 1px solid var(--line); border-right: 1px solid #eef2f7; padding: 0; }
+  .sheet thead th { background: #f8fafc; position: sticky; top: 0; z-index: 2; }
+  .sheet th input { font-weight: 600; font-size: 12px; width: 92px; padding: 9px 6px; border: 0; background: transparent; color: var(--ink); }
+  .sheet td input.cellIn { width: 92px; padding: 11px 6px; border: 0; font-size: 15px; text-align: right; background: transparent; }
+  .sheet .rowHead { position: sticky; left: 0; background: #fff; z-index: 1; padding: 6px 8px; font-size: 12px; white-space: nowrap; border-right: 2px solid var(--line); }
+  .sheet .rowHead b { font-size: 14px; }
+  .sheet thead .rowHead { background: #f8fafc; z-index: 3; }
+  .addColBtn { border: 1px dashed #94a3b8; background: #fff; color: var(--muted); border-radius: 8px; padding: 8px 10px; font-size: 13px; margin: 8px; white-space: nowrap; }
   /* lists */
   .item { padding: 10px 2px; border-bottom: 1px solid var(--line); overflow-wrap: anywhere; }
   .item:last-child { border-bottom: 0; }
@@ -122,7 +136,7 @@
    either one bundle file (data + photos + voice memos) that desktop ARIS imports
    directly, or plain CSVs. */
 
-const APP_VERSION = '1.1';
+const APP_VERSION = '1.2';
 const LS = 'arisField.v1';
 const S = load();
 function load() {
@@ -247,7 +261,7 @@ function notesCSV(t) {
   for (const e of t.notes) rows.push([e.ts, csvCell(e.text)].join(','));
   return rows.join('\n');
 }
-async function buildBundle(t) {
+async function trialSection(t) {
   const media = await mediaList(t.id);
   const photos = [], voice = [];
   for (const m of media) {
@@ -255,10 +269,15 @@ async function buildBundle(t) {
     if (m.kind === 'photo') photos.push({ ...rec, plot: m.plot || '' });
     else voice.push(rec);
   }
+  return { name: t.name, cols: t.cols, plots: t.plots, log: t.log, notes: t.notes, photos, voice };
+}
+/* One trial (default) or every trial on the phone, as a single .arisfield file. */
+async function buildBundle(trials) {
+  const sections = [];
+  for (const t of trials) sections.push(await trialSection(t));
   return JSON.stringify({
-    format: 'aris-field-bundle', version: 1, exportedAt: new Date().toISOString(),
-    trial: { name: t.name }, cols: t.cols, plots: t.plots,
-    log: t.log, notes: t.notes, photos, voice,
+    format: 'aris-field-bundle', version: 2, appVersion: APP_VERSION,
+    exportedAt: new Date().toISOString(), trials: sections,
   });
 }
 async function shareFile(filename, content, mime) {
@@ -375,10 +394,12 @@ function renderHome() {
 
 /* ── entry ──────────────────────────────────────────── */
 function renderEntry(t) {
+  if ((S.entryMode ?? 'plot') === 'grid') { renderEntryGrid(t); return; }
   plotIdx = Math.max(0, Math.min(plotIdx, t.plots.length - 1));
   const p = t.plots[plotIdx];
   const done = t.plots.filter(x => Object.keys(x.vals).length > 0).length;
   main.innerHTML = `
+    ${modeToggleHTML('plot')}
     <div class="card">
       <div class="plotHead"><span class="num">Plot ${p.plot}</span><span class="meta">${esc(p.rep)} · Treatment ${esc(p.trt)}</span></div>
       <div id="vals"></div>
@@ -409,6 +430,68 @@ function renderEntry(t) {
   main.querySelector('#prev').onclick = () => { plotIdx--; render(); };
   main.querySelector('#next').onclick = () => { plotIdx++; render(); };
   main.querySelector('#jump').onchange = (e) => { plotIdx = Number(e.target.value); render(); };
+  wireModeToggle();
+}
+
+function modeToggleHTML(active) {
+  return `<div class="modeRow" role="tablist" aria-label="Entry view">
+    <button data-mode="plot" class="${active === 'plot' ? 'on' : ''}">One plot at a time</button>
+    <button data-mode="grid" class="${active === 'grid' ? 'on' : ''}">Grid (all plots)</button>
+  </div>`;
+}
+function wireModeToggle() {
+  main.querySelectorAll('.modeRow button').forEach(b => {
+    b.onclick = () => { S.entryMode = b.dataset.mode; save(); render(); };
+  });
+}
+
+/* Desktop-style grid: every plot as a row, every variable as a renameable column,
+   editable cells, add-variable button. Scrolls sideways like a spreadsheet. */
+function renderEntryGrid(t) {
+  const head = t.cols.map((c, i) =>
+    `<th><input value="${esc(c)}" data-col="${i}" aria-label="Column name ${i + 1}" /></th>`).join('');
+  const rows = t.plots.map((p, pi) => {
+    const cells = t.cols.map((_, ci) =>
+      `<td><input class="cellIn" type="text" inputmode="decimal" value="${p.vals[ci] ?? ''}" data-p="${pi}" data-c="${ci}" aria-label="Plot ${p.plot} ${esc(t.cols[ci])}" /></td>`).join('');
+    return `<tr><td class="rowHead"><b>${p.plot}</b> ${esc(p.rep)} · ${esc(p.trt)}</td>${cells}</tr>`;
+  }).join('');
+  const done = t.plots.reduce((s2, p) => s2 + Object.keys(p.vals).length, 0);
+  main.innerHTML = `
+    ${modeToggleHTML('grid')}
+    <div class="gridWrap">
+      <table class="sheet">
+        <thead><tr><th class="rowHead">Plot</th>${head}<th><button class="addColBtn" id="addCol">+ variable</button></th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+    <p class="muted center" style="margin-top:8px">${done} values entered · tap a column name to rename it · swipe the table sideways for more columns</p>
+    <p class="muted center">Tip: if this trial syncs with the desktop, keep column names matching the desktop's so values line up on import.</p>`;
+  const wrap = main.querySelector('.gridWrap');
+  wrap.addEventListener('input', (e) => {
+    const el = e.target;
+    if (el.dataset.col != null) {
+      const i = Number(el.dataset.col);
+      const name = el.value;
+      if (name.trim()) { t.cols[i] = name; save(); }
+      return;
+    }
+    if (el.dataset.p != null) {
+      const p = t.plots[Number(el.dataset.p)];
+      const ci = el.dataset.c;
+      const raw = el.value.trim();
+      if (raw === '') delete p.vals[ci];
+      else { const n = Number(raw); if (isFinite(n)) p.vals[ci] = n; }
+      save();
+    }
+  });
+  main.querySelector('#addCol').onclick = () => {
+    t.cols.push('New variable ' + (t.cols.length + 1));
+    save(); render();
+    const inputs = main.querySelectorAll('thead input');
+    inputs[inputs.length - 1]?.focus();
+    inputs[inputs.length - 1]?.select();
+  };
+  wireModeToggle();
 }
 
 /* ── photos ─────────────────────────────────────────── */
@@ -516,8 +599,9 @@ function renderNotes(t) {
       <h2>Voice memos <span class="muted" id="vmCount"></span></h2>
       ${canRecord
         ? `<label class="f">Caption for the next recording (optional)<input type="text" id="vmCap" placeholder="e.g. Plot 12 disease check" /></label>
-           <button class="btn secondary" id="rec">🎙️ Start recording</button>`
-        : '<p class="muted">Voice recording isn’t available in this browser. It works once the app is opened in Safari on an iPhone.</p>'}
+           <button class="btn secondary" id="rec">🎙️ Start recording</button>
+           <p class="muted" style="margin-top:6px">The first time, your phone will ask to allow the microphone — tap <b>Allow</b>. If you tapped Don’t Allow before, turn it back on in Settings → ARIS Field → Microphone.</p>`
+        : '<p class="muted">Voice recording isn’t available in this browser. On an iPhone it works after adding the app to the Home Screen (needs iOS 15 or newer).</p>'}
       <div id="vmList"></div>
     </div>
     <div class="card"><h2>Notes (${t.notes.length})</h2><div id="list">${t.notes.length ? '' : '<p class="muted">No notes yet.</p>'}</div></div>`;
@@ -549,12 +633,17 @@ function renderNotes(t) {
       recorder.onstop = async () => {
         const blob = new Blob(recChunks, { type: recorder.mimeType || 'audio/mp4' });
         stream.getTracks().forEach(tr => tr.stop());
+        recorder = null;
+        if (!blob.size) {
+          flash = { text: 'Nothing was recorded — the microphone produced no audio. Check the mic permission and try again.', err: true };
+          render();
+          return;
+        }
         await mediaPut({
           id: uid('vm'), trialId: t.id, kind: 'voice', ts: new Date().toISOString(),
           caption: main.querySelector('#vmCap')?.value.trim() ?? '',
           mime: blob.type || 'audio/mp4', blob,
         });
-        recorder = null;
         flash = { text: 'Voice memo saved on this phone.' };
         render();
       };
@@ -562,7 +651,15 @@ function renderNotes(t) {
       recBtn.innerHTML = '<span class="recDot"></span>Recording… tap to stop';
       recBtn.classList.remove('secondary');
     } catch (err) {
-      flash = { text: 'Microphone unavailable: ' + (err.message || err.name), err: true };
+      const denied = err.name === 'NotAllowedError' || err.name === 'SecurityError';
+      flash = {
+        err: true,
+        text: denied
+          ? 'Microphone permission is blocked. On iPhone: Settings → ARIS Field (or Safari) → Microphone → Allow, then try again.'
+          : err.name === 'NotFoundError'
+            ? 'No microphone was found on this device.'
+            : 'Could not start recording: ' + (err.message || err.name),
+      };
       render();
     }
   };
@@ -596,8 +693,9 @@ function renderSave(t) {
   main.innerHTML = `
     <div class="card">
       <h2>Save everything as one file</h2>
-      <p class="muted">One bundle with your entered values, field log, notes, photos and voice memos. Email or AirDrop it to the computer, then in desktop ARIS open Assessment Entry and press <b>⬆ Import field data</b>.</p>
-      <button class="btn" id="exBundle">💾 Save bundle (one file)</button>
+      <p class="muted">One .arisfield file with your entered values, field log, notes, photos and voice memos. Email or AirDrop it to the computer, then in desktop ARIS open Assessment Entry and press <b>⬆ Import field data</b> — or simply drag the file onto that page.</p>
+      <button class="btn" id="exBundle">💾 Save this trial (one file)</button>
+      ${S.trials.length > 1 ? `<button class="btn secondary" id="exAll">💾 Save ALL ${S.trials.length} trials (one file)</button>` : ''}
       <p class="muted center" id="bundleInfo" style="margin-top:8px"></p>
     </div>
     <div class="card">
@@ -617,18 +715,21 @@ function renderSave(t) {
       n(t.notes.length, 'note', 'notes'), n(ph, 'photo', 'photos'), n(vm, 'voice memo', 'voice memos'),
     ].join(', ') + '.';
   });
-  main.querySelector('#exBundle').onclick = async (e) => {
-    const btn = e.target;
+  const packAndShare = async (btn, trials, filename) => {
+    const original = btn.textContent;
     btn.disabled = true; btn.textContent = 'Packing…';
     try {
-      const json = await buildBundle(t);
-      await shareFile(stem + '_field_bundle.json', json, 'application/json');
+      const json = await buildBundle(trials);
+      await shareFile(filename, json, 'application/json');
     } catch (err) {
       flash = { text: 'Could not build the bundle: ' + (err.message || err.name), err: true };
       render(); return;
     }
-    btn.disabled = false; btn.textContent = '💾 Save bundle (one file)';
+    btn.disabled = false; btn.textContent = original;
   };
+  main.querySelector('#exBundle').onclick = (e) => packAndShare(e.target, [t], stem + '.arisfield');
+  const allBtn = main.querySelector('#exAll');
+  if (allBtn) allBtn.onclick = (e) => packAndShare(e.target, S.trials, 'ARIS_field_all_trials.arisfield');
   main.querySelector('#exA').onclick = () => shareFile(stem + '_assessment.csv', assessmentCSV(t), 'text/csv');
   main.querySelector('#exL').onclick = () => shareFile(stem + '_fieldlog.csv', logCSV(t), 'text/csv');
   main.querySelector('#exN').onclick = () => shareFile(stem + '_notes.csv', notesCSV(t), 'text/csv');
