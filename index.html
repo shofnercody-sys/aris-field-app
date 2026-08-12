@@ -111,6 +111,28 @@
   .note { background: #f0fdf4; border: 1px solid #bbf7d0; color: #166534; border-radius: 9px; padding: 9px 11px; font-size: 13.5px; margin-bottom: 10px; overflow-wrap: anywhere; }
   .err { background: #fef2f2; border-color: #fecaca; color: var(--red); }
   .hidden { display: none !important; }
+  .banner {
+    position: sticky; top: 0; z-index: 6; display: flex; align-items: center; gap: 10px;
+    background: #fff7ed; border-bottom: 1px solid #fed7aa; color: #9a3412;
+    padding: 9px 14px; font-size: 13.5px;
+  }
+  .banner.update { background: #eff6ff; border-color: #bfdbfe; color: #1e40af; }
+  .banner .grow { flex: 1; }
+  .banner button { border: 0; border-radius: 7px; padding: 7px 11px; font-size: 13px; background: rgba(0,0,0,.08); color: inherit; }
+  .warnTag { color: #b45309; font-weight: 600; }
+  .lightbox {
+    position: fixed; inset: 0; background: rgba(10,15,25,.92); z-index: 20;
+    display: flex; align-items: center; justify-content: center; padding: 18px;
+  }
+  .lightbox img { max-width: 100%; max-height: 88%; border-radius: 8px; }
+  .lightbox .cap { position: absolute; bottom: calc(14px + env(safe-area-inset-bottom)); left: 0; right: 0; text-align: center; color: #e2e8f0; font-size: 13px; padding: 0 20px; }
+  footer.status {
+    text-align: center; color: var(--muted); font-size: 12px;
+    padding: 6px 14px calc(var(--tabbar) + env(safe-area-inset-bottom) + 10px);
+    margin-top: -46px;
+  }
+  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; vertical-align: middle; margin-right: 4px; }
+  .dot.on { background: #22c55e; } .dot.off { background: #94a3b8; }
 </style>
 </head>
 <body>
@@ -138,14 +160,31 @@
    either one bundle file (data + photos + voice memos) that desktop ARIS imports
    directly, or plain CSVs. */
 
-const APP_VERSION = '1.3';
+const APP_VERSION = '2.0';
 const LS = 'arisField.v1';
 const S = load();
 function load() {
   try { const d = JSON.parse(localStorage.getItem(LS)); if (d && Array.isArray(d.trials)) return d; } catch (e) {}
   return { trials: [], currentId: null };
 }
-function save() { localStorage.setItem(LS, JSON.stringify(S)); }
+function save() {
+  const t = S.trials.find(x => x.id === S.currentId);
+  if (t) t.changedAt = new Date().toISOString();
+  localStorage.setItem(LS, JSON.stringify(S));
+}
+/* Media lives in IndexedDB, outside save(); stamp the trial explicitly. */
+function touchTrial(trialId) {
+  const t = S.trials.find(x => x.id === trialId);
+  if (t) { t.changedAt = new Date().toISOString(); localStorage.setItem(LS, JSON.stringify(S)); }
+}
+function markExported(trials) {
+  const now = new Date().toISOString();
+  for (const t of trials) t.exportedAt = now;
+  localStorage.setItem(LS, JSON.stringify(S));
+}
+function needsExport(t) {
+  return !!t.changedAt && (!t.exportedAt || t.changedAt > t.exportedAt);
+}
 const uid = (p) => (p || 'id') + '-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 const cur = () => S.trials.find(t => t.id === S.currentId) || null;
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -165,6 +204,7 @@ function idb() {
   return dbP;
 }
 async function mediaPut(rec) {
+  touchTrial(rec.trialId);
   const db = await idb();
   return new Promise((res, rej) => {
     const tx = db.transaction('media', 'readwrite');
@@ -285,11 +325,18 @@ async function buildBundle(trials) {
 async function shareFile(filename, content, mime) {
   const file = new File([content], filename, { type: mime });
   if (navigator.canShare && navigator.canShare({ files: [file] })) {
-    try { await navigator.share({ files: [file], title: filename }); return; } catch (e) { if (e.name === 'AbortError') return; }
+    try {
+      await navigator.share({ files: [file], title: filename });
+      return true;
+    } catch (e) {
+      // Cancelling the share sheet means the data was NOT saved anywhere.
+      if (e.name === 'AbortError') return false;
+    }
   }
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([content], { type: mime }));
   a.download = filename; a.click(); URL.revokeObjectURL(a.href);
+  return true;
 }
 
 /* ── app shell / routing ────────────────────────────── */
@@ -352,7 +399,7 @@ function renderHome() {
     const row = document.createElement('div');
     row.className = 'trialRow';
     row.innerHTML = `<div class="grow"><div class="name">${esc(t.name)}</div>
-      <div class="muted">${t.plots.length} plots · ${t.cols.length} variables · ${filled} values entered</div></div>
+      <div class="muted">${t.plots.length} plots · ${t.cols.length} variables · ${filled} values entered${needsExport(t) ? ' · <span class="warnTag">not yet saved to a file</span>' : ''}</div></div>
       <button data-open="${t.id}">Open</button><button data-del="${t.id}" style="color:var(--red)">✕</button>`;
     list.appendChild(row);
   });
@@ -469,6 +516,13 @@ function renderEntryGrid(t) {
     <p class="muted center" style="margin-top:8px">${done} values entered · tap a column name to rename it · swipe the table sideways for more columns</p>
     <p class="muted center">Tip: if this trial syncs with the desktop, keep column names matching the desktop's so values line up on import.</p>`;
   const wrap = main.querySelector('.gridWrap');
+  // Enter (the keyboard's Go/Done) jumps to the same column in the next plot row.
+  wrap.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter' || e.target.dataset.p == null) return;
+    e.preventDefault();
+    const nxt = wrap.querySelector('input[data-p="' + (Number(e.target.dataset.p) + 1) + '"][data-c="' + e.target.dataset.c + '"]');
+    if (nxt) { nxt.focus(); nxt.select?.(); }
+  });
   wrap.addEventListener('input', (e) => {
     const el = e.target;
     if (el.dataset.col != null) {
@@ -543,7 +597,17 @@ async function paintPhotos(t) {
   });
   grid.onclick = async (e) => {
     const id = e.target.dataset.id;
-    if (id) { await mediaDelete(id); paintPhotos(t); }
+    if (id) { await mediaDelete(id); touchTrial(t.id); paintPhotos(t); return; }
+    // Tap a thumbnail to view it full-size.
+    if (e.target.tagName === 'IMG') {
+      const card = e.target.closest('.photoCard');
+      const cap = card?.querySelector('.pc')?.textContent ?? '';
+      const box = document.createElement('div');
+      box.className = 'lightbox';
+      box.innerHTML = '<img src="' + e.target.src + '" alt="Field photo" /><div class="cap">' + esc(cap) + ' — tap to close</div>';
+      box.onclick = () => box.remove();
+      document.body.appendChild(box);
+    }
   };
 }
 
@@ -633,6 +697,9 @@ function renderNotes(t) {
       recChunks = [];
       recorder.ondataavailable = (e) => { if (e.data.size) recChunks.push(e.data); };
       recorder.onstop = async () => {
+        clearInterval(window.__recTimer);
+        try { window.__wakeLock?.release(); } catch (e) {}
+        window.__wakeLock = null;
         const blob = new Blob(recChunks, { type: recorder.mimeType || 'audio/mp4' });
         stream.getTracks().forEach(tr => tr.stop());
         recorder = null;
@@ -649,7 +716,15 @@ function renderNotes(t) {
         flash = { text: 'Voice memo saved on this phone.' };
         render();
       };
-      recorder.start();
+      recorder.start(1000); // timeslice: chunks land every second, so a memo survives even if stop misbehaves
+      try { window.__wakeLock = await navigator.wakeLock?.request('screen'); } catch (e) {}
+      const t0 = Date.now();
+      window.__recTimer = setInterval(() => {
+        const secs = Math.floor((Date.now() - t0) / 1000);
+        const mm = Math.floor(secs / 60);
+        const ss = String(secs % 60).padStart(2, '0');
+        recBtn.innerHTML = '<span class="recDot"></span>Recording ' + mm + ':' + ss + ' — tap to stop';
+      }, 500);
       recBtn.innerHTML = '<span class="recDot"></span>Recording… tap to stop';
       recBtn.classList.remove('secondary');
     } catch (err) {
@@ -684,7 +759,7 @@ async function paintVoice(t) {
   });
   list.onclick = async (e) => {
     const id = e.target.dataset.id;
-    if (id) { await mediaDelete(id); paintVoice(t); }
+    if (id) { await mediaDelete(id); touchTrial(t.id); paintVoice(t); }
   };
 }
 
@@ -693,6 +768,7 @@ function renderSave(t) {
   const filled = t.plots.reduce((s, p) => s + Object.keys(p.vals).length, 0);
   const stem = t.name.replace(/[^\w.-]+/g, '_');
   main.innerHTML = `
+    ${needsExport(t) ? '<div class="note">This trial has data that is not saved to a file yet. Save a bundle below before leaving the field.</div>' : ''}
     <div class="card">
       <h2>Save everything as one file</h2>
       <p class="muted">One .arisfield file with your entered values, field log, notes, photos and voice memos. Email or AirDrop it to the computer, then in desktop ARIS open Assessment Entry and press <b>⬆ Import field data</b> — or simply drag the file onto that page.</p>
@@ -720,19 +796,21 @@ function renderSave(t) {
   const packAndShare = async (btn, trials, filename) => {
     const original = btn.textContent;
     btn.disabled = true; btn.textContent = 'Packing…';
+    let shared = false;
     try {
       const json = await buildBundle(trials);
-      await shareFile(filename, json, 'application/json');
+      shared = await shareFile(filename, json, 'application/json');
     } catch (err) {
       flash = { text: 'Could not build the bundle: ' + (err.message || err.name), err: true };
       render(); return;
     }
     btn.disabled = false; btn.textContent = original;
+    return shared;
   };
-  main.querySelector('#exBundle').onclick = (e) => packAndShare(e.target, [t], stem + '.arisfield');
+  main.querySelector('#exBundle').onclick = (e) => packAndShare(e.target, [t], stem + '.arisfield').then((ok) => { if (ok) { markExported([t]); render(); } });
   const allBtn = main.querySelector('#exAll');
-  if (allBtn) allBtn.onclick = (e) => packAndShare(e.target, S.trials, 'ARIS_field_all_trials.arisfield');
-  main.querySelector('#exA').onclick = () => shareFile(stem + '_assessment.csv', assessmentCSV(t), 'text/csv');
+  if (allBtn) allBtn.onclick = (e) => packAndShare(e.target, S.trials, 'ARIS_field_all_trials.arisfield').then((ok) => { if (ok) { markExported(S.trials); render(); } });
+  main.querySelector('#exA').onclick = () => shareFile(stem + '_assessment.csv', assessmentCSV(t), 'text/csv').then((ok) => { if (ok) { markExported([t]); render(); } });
   main.querySelector('#exL').onclick = () => shareFile(stem + '_fieldlog.csv', logCSV(t), 'text/csv');
   main.querySelector('#exN').onclick = () => shareFile(stem + '_notes.csv', notesCSV(t), 'text/csv');
 }
@@ -752,7 +830,69 @@ tabs.onclick = (e) => { const b = e.target.closest('button'); if (b) { view = b.
 backBtn.onclick = () => { view = 'home'; render(); };
 render();
 
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
+/* Status footer: version, online state, storage protection. */
+const foot = document.createElement('footer');
+foot.className = 'status';
+document.body.appendChild(foot);
+async function paintFooter() {
+  const persisted = await (navigator.storage?.persisted?.() ?? Promise.resolve(false));
+  foot.innerHTML = '<span class="dot ' + (navigator.onLine ? 'on' : 'off') + '"></span>' +
+    (navigator.onLine ? 'Online' : 'Offline — everything still works') +
+    ' · v' + APP_VERSION +
+    ' · storage ' + (persisted ? 'protected' : 'best-effort');
+}
+window.addEventListener('online', paintFooter);
+window.addEventListener('offline', paintFooter);
+paintFooter();
+
+/* Ask the OS to protect our storage from cleanup (critical on iPhones). Re-request on
+   meaningful moments; browsers grant it silently for installed/home-screen apps. */
+async function requestPersistence() {
+  try { await navigator.storage?.persist?.(); } catch (e) {}
+  paintFooter();
+}
+requestPersistence();
+
+/* Install hint when running in a plain browser tab (not from the Home Screen). */
+(function installHint() {
+  const standalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+  if (standalone || localStorage.getItem('arisField.hintDismissed')) return;
+  const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
+  const b = document.createElement('div');
+  b.className = 'banner';
+  b.innerHTML = '<div class="grow">' + (isIOS
+    ? 'Install this app: tap the Share button, then <b>Add to Home Screen</b>. It then works fully offline.'
+    : 'Tip: install this app from your browser menu (Add to Home screen / Install) for offline use.') +
+    '</div><button id="hintX">Got it</button>';
+  document.body.insertBefore(b, document.body.firstChild);
+  b.querySelector('#hintX').onclick = () => { localStorage.setItem('arisField.hintDismissed', '1'); b.remove(); };
+})();
+
+/* Service worker with a visible update flow: when a new version is deployed, a banner
+   offers the update instead of silently serving the old cached app. */
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js').then((reg) => {
+    const offer = (worker) => {
+      if (!navigator.serviceWorker.controller) return; // first install, nothing to update
+      const b = document.createElement('div');
+      b.className = 'banner update';
+      b.innerHTML = '<div class="grow">A new version of ARIS Field is ready.</div><button id="updNow">Update now</button>';
+      document.body.insertBefore(b, document.body.firstChild);
+      b.querySelector('#updNow').onclick = () => worker.postMessage('SKIP_WAITING');
+    };
+    if (reg.waiting) offer(reg.waiting);
+    reg.addEventListener('updatefound', () => {
+      const nw = reg.installing;
+      nw?.addEventListener('statechange', () => {
+        if (nw.state === 'installed' && navigator.serviceWorker.controller) offer(nw);
+      });
+    });
+  });
+  let refreshing = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!refreshing) { refreshing = true; location.reload(); }
+  });
+}
 </script>
 </body>
 </html>
