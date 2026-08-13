@@ -120,6 +120,11 @@
   .banner .grow { flex: 1; }
   .banner button { border: 0; border-radius: 7px; padding: 7px 11px; font-size: 13px; background: rgba(0,0,0,.08); color: inherit; }
   .warnTag { color: #b45309; font-weight: 600; }
+  table.res { width: 100%; border-collapse: collapse; font-size: 14px; }
+  .res th, .res td { padding: 7px 8px; border-bottom: 1px solid var(--line); text-align: right; }
+  .res th:first-child, .res td:first-child { text-align: left; }
+  .res thead th { color: var(--muted); font-weight: 600; font-size: 12px; }
+  .res tr.best td { background: #f0fdf4; font-weight: 700; }
   .lightbox {
     position: fixed; inset: 0; background: rgba(10,15,25,.92); z-index: 20;
     display: flex; align-items: center; justify-content: center; padding: 18px;
@@ -144,6 +149,7 @@
 <main id="main"></main>
 <nav class="tabs hidden" id="tabs">
   <button data-tab="entry"><span class="ic">📋</span>Entry</button>
+  <button data-tab="results"><span class="ic">📊</span>Results</button>
   <button data-tab="photos"><span class="ic">📷</span>Photos</button>
   <button data-tab="log"><span class="ic">🗒️</span>Log</button>
   <button data-tab="notes"><span class="ic">📝</span>Notes</button>
@@ -160,7 +166,7 @@
    either one bundle file (data + photos + voice memos) that desktop ARIS imports
    directly, or plain CSVs. */
 
-const APP_VERSION = '2.0';
+const APP_VERSION = '2.1';
 const LS = 'arisField.v1';
 const S = load();
 function load() {
@@ -311,7 +317,7 @@ async function trialSection(t) {
     if (m.kind === 'photo') photos.push({ ...rec, plot: m.plot || '' });
     else voice.push(rec);
   }
-  return { name: t.name, cols: t.cols, plots: t.plots, log: t.log, notes: t.notes, photos, voice };
+  return { name: t.name, cols: t.cols, plots: t.plots, log: t.log, notes: t.notes, photos, voice, assessmentDate: t.asmtDate || '' };
 }
 /* One trial (default) or every trial on the phone, as a single .arisfield file. */
 async function buildBundle(trials) {
@@ -365,6 +371,7 @@ function render() {
   tabs.querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.tab === view));
   if (view === 'home') renderHome();
   else if (view === 'entry') renderEntry(t);
+  else if (view === 'results') renderResults(t);
   else if (view === 'photos') renderPhotos(t);
   else if (view === 'log') renderList(t, 'log');
   else if (view === 'notes') renderNotes(t);
@@ -548,6 +555,42 @@ function renderEntryGrid(t) {
     inputs[inputs.length - 1]?.select();
   };
   wireModeToggle();
+}
+
+/* ── results ───────────────────── */
+/* Per-treatment means computed right on the phone — a field-side sanity check, not the
+   full ANOVA (that runs in desktop ARIS after import). */
+function renderResults(t) {
+  const cards = t.cols.map((c, ci) => {
+    const byTrt = new Map();
+    for (const p of t.plots) {
+      const v = p.vals[ci];
+      if (typeof v !== 'number') continue;
+      if (!byTrt.has(p.trt)) byTrt.set(p.trt, []);
+      byTrt.get(p.trt).push(v);
+    }
+    if (!byTrt.size) {
+      return `<div class="card"><h2>${esc(c)}</h2><p class="muted">No values entered yet.</p></div>`;
+    }
+    const rows = [...byTrt.entries()].map(([trt, vs]) => ({
+      trt, n: vs.length, mean: vs.reduce((a, b) => a + b, 0) / vs.length,
+      min: Math.min(...vs), max: Math.max(...vs),
+    }));
+    rows.sort((a, b) => b.mean - a.mean);
+    const hi = rows[0].mean, lo = rows[rows.length - 1].mean;
+    const body = rows.map(r =>
+      `<tr><td>${esc(r.trt)}</td><td>${r.n}</td><td>${r.mean.toFixed(2)}</td><td>${r.min}–${r.max}</td></tr>`
+    ).join('');
+    return `<div class="card"><h2>${esc(c)}</h2>
+      <div style="overflow-x:auto"><table class="res">
+        <thead><tr><th>Trt</th><th>n</th><th>Mean</th><th>Range</th></tr></thead>
+        <tbody>${body}</tbody>
+      </table></div>
+      <p class="muted" style="margin-top:6px">Highest mean ${hi.toFixed(2)}, lowest ${lo.toFixed(2)} · sorted high→low.</p>
+    </div>`;
+  }).join('');
+  main.innerHTML = cards +
+    '<p class="muted center">Simple field means — no significance testing here. Import into desktop ARIS for the full ANOVA, letters and CV.</p>';
 }
 
 /* ── photos ─────────────────────────────────────────── */
@@ -770,6 +813,11 @@ function renderSave(t) {
   main.innerHTML = `
     ${needsExport(t) ? '<div class="note">This trial has data that is not saved to a file yet. Save a bundle below before leaving the field.</div>' : ''}
     <div class="card">
+      <h2>Assessment date</h2>
+      <p class="muted">The day this data was collected. It rides along in the bundle, and desktop ARIS stamps it into the Field Log and Calendar on import.</p>
+      <label class="f"><input type="date" id="asmtDate" value="${esc(t.asmtDate || new Date().toISOString().slice(0, 10))}" /></label>
+    </div>
+    <div class="card">
       <h2>Save everything as one file</h2>
       <p class="muted">One .arisfield file with your entered values, field log, notes, photos and voice memos. Email or AirDrop it to the computer, then in desktop ARIS open Assessment Entry and press <b>⬆ Import field data</b> — or simply drag the file onto that page.</p>
       <button class="btn" id="exBundle">💾 Save this trial (one file)</button>
@@ -793,6 +841,11 @@ function renderSave(t) {
       n(t.notes.length, 'note', 'notes'), n(ph, 'photo', 'photos'), n(vm, 'voice memo', 'voice memos'),
     ].join(', ') + '.';
   });
+  const dateIn = main.querySelector('#asmtDate');
+  if (dateIn) {
+    if (!t.asmtDate) { t.asmtDate = dateIn.value; localStorage.setItem(LS, JSON.stringify(S)); }
+    dateIn.onchange = () => { t.asmtDate = dateIn.value; save(); };
+  }
   const packAndShare = async (btn, trials, filename) => {
     const original = btn.textContent;
     btn.disabled = true; btn.textContent = 'Packing…';
