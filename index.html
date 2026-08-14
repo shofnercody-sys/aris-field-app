@@ -221,7 +221,7 @@
    either one bundle file (data + photos + voice memos) that desktop ARIS imports
    directly, or plain CSVs. */
 
-const APP_VERSION = '2.3.3';
+const APP_VERSION = '2.3.4';
 const LS = 'arisField.v1';
 const S = load();
 function load() {
@@ -1093,6 +1093,27 @@ async function paintFooter() {
     ' · v' + APP_VERSION +
     ' · storage ' + (persisted ? 'protected' : 'best-effort');
 }
+let footTaps = 0;
+let footDebug = false;
+foot.addEventListener('click', () => {
+  footTaps++;
+  setTimeout(() => { footTaps = 0; }, 900);
+  if (footTaps >= 3) {
+    footTaps = 0;
+    footDebug = !footDebug;
+    if (footDebug) {
+      const vv = window.visualViewport;
+      const bar = document.getElementById('tabs')?.getBoundingClientRect();
+      const sab = getComputedStyle(document.documentElement).getPropertyValue('--appH');
+      foot.textContent =
+        `DEBUG inner=${window.innerHeight} vv=${vv ? Math.round(vv.height) + '+' + Math.round(vv.offsetTop) : 'n/a'} ` +
+        `screen=${screen.height} appH=${sab || '?'} barBottom=${bar ? Math.round(bar.bottom) : '?'} ` +
+        `standalone=${window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true}`;
+    } else {
+      paintFooter();
+    }
+  }
+});
 window.addEventListener('online', paintFooter);
 window.addEventListener('offline', paintFooter);
 paintFooter();
