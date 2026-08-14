@@ -182,7 +182,7 @@
    either one bundle file (data + photos + voice memos) that desktop ARIS imports
    directly, or plain CSVs. */
 
-const APP_VERSION = '2.2.2';
+const APP_VERSION = '2.2.3';
 const LS = 'arisField.v1';
 const S = load();
 function load() {
@@ -960,20 +960,30 @@ render();
       requestAnimationFrame(() => { window.scrollBy(0, 1); window.scrollBy(0, -1); });
     }
   };
+  // Two independent signals, OR-ed: iOS resizes the visual viewport for the text keyboard,
+  // but the SELECT/date picker wheel raises WITHOUT a resize — focus tracking catches those.
+  let vvOpen = false;
+  let focusOpen = false;
+  const apply = () => setKb(vvOpen || focusOpen);
   const vv = window.visualViewport;
   if (vv) {
-    const onVV = () => setKb(window.innerHeight - vv.height > 120);
+    const onVV = () => { vvOpen = window.innerHeight - vv.height > 120; apply(); };
     vv.addEventListener('resize', onVV);
     vv.addEventListener('scroll', onVV);
-  } else {
-    // Fallback: focus tracking on text-entry elements.
-    document.addEventListener('focusin', (e) => {
-      if (/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) setKb(true);
-    });
-    document.addEventListener('focusout', () => setTimeout(() => {
-      if (!/^(INPUT|TEXTAREA)$/.test(document.activeElement?.tagName ?? '')) setKb(false);
-    }, 80));
   }
+  document.addEventListener('focusin', (e) => {
+    if (/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName) && e.target.type !== 'checkbox' && e.target.type !== 'button' && e.target.type !== 'file') {
+      focusOpen = true;
+      apply();
+    }
+  });
+  document.addEventListener('focusout', () => setTimeout(() => {
+    const t = document.activeElement?.tagName ?? '';
+    if (!/^(INPUT|TEXTAREA|SELECT)$/.test(t)) {
+      focusOpen = false;
+      apply();
+    }
+  }, 100));
 })();
 
 /* Status footer: version, online state, storage protection. */
