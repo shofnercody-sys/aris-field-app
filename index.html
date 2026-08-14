@@ -182,7 +182,7 @@
    either one bundle file (data + photos + voice memos) that desktop ARIS imports
    directly, or plain CSVs. */
 
-const APP_VERSION = '2.2.3';
+const APP_VERSION = '2.2.4';
 const LS = 'arisField.v1';
 const S = load();
 function load() {
@@ -390,6 +390,11 @@ function objUrl(blob) { const u = URL.createObjectURL(blob); objectUrls.push(u);
 function render() {
   freeUrls();
   stopRecorder(false);
+  // iOS detail: switching to a shorter view while scrolled down makes iOS clamp the scroll
+  // and can leave position:fixed chrome (the tab bar) detached above its true spot. Resetting
+  // to the top before the swap re-pins it — and every tab starting at its top is better UX
+  // anyway. A follow-up nudge after paint covers the cases where the clamp lands late.
+  window.scrollTo(0, 0);
   const t = cur();
   if (!t) view = 'home';
   tabs.classList.toggle('hidden', view === 'home');
@@ -404,6 +409,11 @@ function render() {
   else if (view === 'notes') renderNotes(t);
   else if (view === 'save') renderSave(t);
   if (flash) { const n = document.createElement('div'); n.className = 'note' + (flash.err ? ' err' : ''); n.textContent = flash.text; main.prepend(n); flash = null; }
+  requestAnimationFrame(() => {
+    window.scrollTo(0, 0);
+    window.scrollBy(0, 1);
+    window.scrollBy(0, -1);
+  });
 }
 
 /* ── home ───────────────────────────────────────────── */
