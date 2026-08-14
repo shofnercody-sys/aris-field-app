@@ -116,7 +116,20 @@
     background: #fff7ed; border-bottom: 1px solid #fed7aa; color: #9a3412;
     padding: 9px 14px; font-size: 13.5px;
   }
-  .banner.update { background: #eff6ff; border-color: #bfdbfe; color: #1e40af; }
+  .banner.update {
+    /* Bottom placement: the top of a home-screen app sits under the iPhone status bar/notch,
+       which made the button untappable. Floating above the tab bar is always reachable. */
+    position: fixed; top: auto; left: 10px; right: 10px;
+    bottom: calc(var(--tabbar) + env(safe-area-inset-bottom) + 12px);
+    z-index: 30;
+    background: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af;
+    border-radius: 12px; box-shadow: 0 8px 24px rgba(15, 23, 42, .25);
+    flex-wrap: wrap;
+  }
+  .banner.update button {
+    background: #1e40af; color: #fff; font-weight: 700;
+    padding: 14px 20px; font-size: 15px; border-radius: 9px; min-height: 44px;
+  }
   .banner .grow { flex: 1; }
   .banner button { border: 0; border-radius: 7px; padding: 7px 11px; font-size: 13px; background: rgba(0,0,0,.08); color: inherit; }
   .warnTag { color: #b45309; font-weight: 600; }
@@ -166,7 +179,7 @@
    either one bundle file (data + photos + voice memos) that desktop ARIS imports
    directly, or plain CSVs. */
 
-const APP_VERSION = '2.2';
+const APP_VERSION = '2.2.1';
 const LS = 'arisField.v1';
 const S = load();
 function load() {
@@ -972,7 +985,7 @@ if ('serviceWorker' in navigator) {
       const b = document.createElement('div');
       b.className = 'banner update';
       b.innerHTML = '<div class="grow">A new version of ARIS Field is ready.</div><button id="updNow">Update now</button>';
-      document.body.insertBefore(b, document.body.firstChild);
+      document.body.appendChild(b);
       b.querySelector('#updNow').onclick = () => worker.postMessage('SKIP_WAITING');
     };
     if (reg.waiting) offer(reg.waiting);
