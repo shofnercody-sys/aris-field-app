@@ -19,13 +19,30 @@
     --tabbar: 62px;
   }
   * { box-sizing: border-box; margin: 0; }
+  /* Sunlight mode: max contrast for direct sun. Pure white ground, true black ink, heavier
+     borders and weights - plus a wake lock (JS) so iOS doesn't dim or sleep mid-plot. */
+  body.sun {
+    --bg: #ffffff; --card: #ffffff; --ink: #000000; --muted: #222222;
+    --line: #555555; --navy: #000000; --green: #005c1a; --red: #a00000;
+  }
+  body.sun main, body.sun .card { font-weight: 600; }
+  body.sun .card { border-width: 2px; }
+  body.sun input[type="text"], body.sun textarea, body.sun select,
+  body.sun .sheet td input.cellIn { font-weight: 700; color: #000; border-color: #555; }
+  body.sun .muted { color: #222; }
+  body.sun header.app { background: #000; }
+  #sunBtn { background: rgba(255,255,255,.16); color: #fff; border: 0; border-radius: 8px; padding: 8px 11px; font-size: 15px; flex-shrink: 0; }
+  body.sun #sunBtn { background: #ffd700; color: #000; font-weight: 700; }
   html { height: 100%; }
   body {
     /* App shell: the body never scrolls; only <main> does. The tab bar is an ordinary flex
        child pinned by layout, not position:fixed — iOS cannot detach it (keyboard, pickers,
        short pages, scroll clamps: none of it applies to normal flow). */
-    height: 100vh;
-    height: 100dvh;
+    /* position:fixed inset:0 pins the shell to the physical screen edges (with
+       viewport-fit=cover), so the bar is flush with the bottom on every iOS version -
+       100vh/100dvh can leave a sliver on some builds. */
+    position: fixed;
+    inset: 0;
     overflow: hidden;
     display: flex;
     flex-direction: column;
@@ -174,6 +191,7 @@
 <header class="app">
   <img src="logo-white.png" alt="ARIS" class="brand" />
   <h1 id="title">Field</h1>
+  <button id="sunBtn" title="Sunlight mode: maximum contrast + keep the screen awake">☀️</button>
   <button id="backBtn" class="hidden">Trials</button>
 </header>
 <main id="main"></main>
@@ -196,13 +214,37 @@
    either one bundle file (data + photos + voice memos) that desktop ARIS imports
    directly, or plain CSVs. */
 
-const APP_VERSION = '2.3.0';
+const APP_VERSION = '2.3.1';
 const LS = 'arisField.v1';
 const S = load();
 function load() {
   try { const d = JSON.parse(localStorage.getItem(LS)); if (d && Array.isArray(d.trials)) return d; } catch (e) {}
   return { trials: [], currentId: null };
 }
+
+/* ── Sunlight mode ──
+   The web can't set the phone's actual brightness (no Safari API - native apps only), so this
+   does everything a web app CAN do for sun readability: a maximum-contrast theme, heavier
+   type, and a screen wake lock so iOS doesn't auto-dim/sleep while you're between plots. */
+let sunWakeLock = null;
+async function sunWake(on) {
+  try {
+    if (on && 'wakeLock' in navigator) {
+      sunWakeLock = await navigator.wakeLock.request('screen');
+    } else if (!on && sunWakeLock) {
+      await sunWakeLock.release();
+      sunWakeLock = null;
+    }
+  } catch (e) { /* wake lock is best-effort */ }
+}
+function applySunlight() {
+  document.body.classList.toggle('sun', !!S.sunlight);
+  sunWake(!!S.sunlight);
+}
+document.addEventListener('visibilitychange', () => {
+  // iOS drops wake locks on background; re-acquire when the app returns.
+  if (document.visibilityState === 'visible' && S.sunlight) sunWake(true);
+});
 function save() {
   const t = S.trials.find(x => x.id === S.currentId);
   if (t) t.changedAt = new Date().toISOString();
@@ -390,6 +432,18 @@ async function shareFile(filename, content, mime) {
 const main = document.getElementById('main');
 const tabs = document.getElementById('tabs');
 const backBtn = document.getElementById('backBtn');
+const sunBtn = document.getElementById('sunBtn');
+sunBtn.onclick = () => {
+  S.sunlight = !S.sunlight;
+  localStorage.setItem(LS, JSON.stringify(S));
+  applySunlight();
+  flash = {
+    text: S.sunlight
+      ? 'Sunlight mode ON — max contrast, screen stays awake. (Phones don\u2019t let web apps raise actual brightness — swipe into Control Center for the slider.)'
+      : 'Sunlight mode off.',
+  };
+  render();
+};
 const titleEl = document.getElementById('title');
 const fileIn = document.getElementById('fileIn');
 const photoIn = document.getElementById('photoIn');
@@ -1039,6 +1093,8 @@ requestPersistence();
 
 /* Service worker with a visible update flow: when a new version is deployed, a banner
    offers the update instead of silently serving the old cached app. */
+applySunlight();
+
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js').then((reg) => {
     const offer = (worker) => {
