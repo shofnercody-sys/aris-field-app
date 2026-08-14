@@ -107,6 +107,9 @@
   }
   nav.tabs button { flex: 1; border: 0; background: none; padding: 9px 2px 7px; font-size: 11.5px; color: var(--muted); }
   nav.tabs button.on { color: var(--green); font-weight: 700; }
+  /* While the iOS keyboard is up, position:fixed elements ride above it and float mid-screen.
+     The bar hides during typing (the keyboard has its own Done) and returns on dismiss. */
+  nav.tabs.kbHidden, footer.status.kbHidden, .banner.update.kbHidden { display: none; }
   nav.tabs .ic { display: block; font-size: 20px; line-height: 1.2; }
   .note { background: #f0fdf4; border: 1px solid #bbf7d0; color: #166534; border-radius: 9px; padding: 9px 11px; font-size: 13.5px; margin-bottom: 10px; overflow-wrap: anywhere; }
   .err { background: #fef2f2; border-color: #fecaca; color: var(--red); }
@@ -179,7 +182,7 @@
    either one bundle file (data + photos + voice memos) that desktop ARIS imports
    directly, or plain CSVs. */
 
-const APP_VERSION = '2.2.1';
+const APP_VERSION = '2.2.2';
 const LS = 'arisField.v1';
 const S = load();
 function load() {
@@ -937,6 +940,41 @@ function pickFile(cb) {
 tabs.onclick = (e) => { const b = e.target.closest('button'); if (b) { view = b.dataset.tab; render(); } };
 backBtn.onclick = () => { view = 'home'; render(); };
 render();
+
+/* Keyboard-aware chrome: hide the fixed bottom bar (and floating banners) while the on-screen
+   keyboard is open, and nudge scroll on close so iOS re-pins position:fixed correctly. */
+(function keyboardWatcher() {
+  const chrome = () => [
+    document.getElementById('tabs'),
+    document.querySelector('footer.status'),
+    document.querySelector('.banner.update'),
+  ].filter(Boolean);
+  let kbOpen = false;
+  const setKb = (open) => {
+    if (open === kbOpen) return;
+    kbOpen = open;
+    chrome().forEach((el) => el.classList.toggle('kbHidden', open));
+    if (!open) {
+      // iOS sometimes leaves fixed elements detached after the keyboard closes; a 1px scroll
+      // nudge forces a re-pin.
+      requestAnimationFrame(() => { window.scrollBy(0, 1); window.scrollBy(0, -1); });
+    }
+  };
+  const vv = window.visualViewport;
+  if (vv) {
+    const onVV = () => setKb(window.innerHeight - vv.height > 120);
+    vv.addEventListener('resize', onVV);
+    vv.addEventListener('scroll', onVV);
+  } else {
+    // Fallback: focus tracking on text-entry elements.
+    document.addEventListener('focusin', (e) => {
+      if (/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) setKb(true);
+    });
+    document.addEventListener('focusout', () => setTimeout(() => {
+      if (!/^(INPUT|TEXTAREA)$/.test(document.activeElement?.tagName ?? '')) setKb(false);
+    }, 80));
+  }
+})();
 
 /* Status footer: version, online state, storage protection. */
 const foot = document.createElement('footer');
