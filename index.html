@@ -17,6 +17,8 @@
     --navy: #1e3a5f; --green: #2e7d32; --bg: #f4f6f9; --card: #ffffff;
     --ink: #0f172a; --muted: #64748b; --line: #e2e8f0; --red: #b91c1c;
     --tabbar: 62px;
+    --cushion: max(4px, calc(env(safe-area-inset-bottom) - 22px));
+    --barH2: calc(54px + var(--cushion));
   }
   * { box-sizing: border-box; margin: 0; }
   /* Sunlight mode: max contrast for direct sun. Pure white ground, true black ink, heavier
@@ -65,7 +67,7 @@
     flex: 1 1 auto; order: 2; min-height: 0;
     overflow-y: auto; -webkit-overflow-scrolling: touch;
     overflow-x: hidden;
-    padding: 14px 14px 24px;
+    padding: 14px 14px calc(var(--barH2) + 26px);
     width: 100%; max-width: 560px; margin: 0 auto;
   }
   .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px; margin-bottom: 12px; }
@@ -132,11 +134,9 @@
   @keyframes blink { 50% { opacity: .25; } }
   /* tab bar */
   nav.tabs {
-    flex: 0 0 auto; order: 4;
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 5;
     display: flex; background: #fff;
     border-top: 1px solid var(--line);
-    /* The full safe-area cushion (~34px) made the bar look like it floats. Keep just a
-       small clearance so the buttons sit at the true bottom, like most apps. */
     padding-bottom: max(4px, calc(env(safe-area-inset-bottom) - 22px));
   }
   body.sun nav.tabs { background: #fff; }
@@ -184,12 +184,13 @@
   .lightbox img { max-width: 100%; max-height: 88%; border-radius: 8px; }
   .lightbox .cap { position: absolute; bottom: calc(14px + env(safe-area-inset-bottom)); left: 0; right: 0; text-align: center; color: #e2e8f0; font-size: 13px; padding: 0 20px; }
   footer.status {
-    flex: 0 0 auto; order: 3;
+    position: fixed; left: 0; right: 0; bottom: var(--barH2); z-index: 5;
     text-align: center; color: var(--muted); font-size: 10.5px; line-height: 1.3;
     padding: 2px 14px;
     border-top: 1px solid var(--line);
     background: var(--bg);
   }
+  body.tabsHidden footer.status { bottom: 0; }
   .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; vertical-align: middle; margin-right: 4px; }
   .dot.on { background: #22c55e; } .dot.off { background: #94a3b8; }
 </style>
@@ -221,7 +222,7 @@
    either one bundle file (data + photos + voice memos) that desktop ARIS imports
    directly, or plain CSVs. */
 
-const APP_VERSION = '2.3.4';
+const APP_VERSION = '2.3.6';
 const LS = 'arisField.v1';
 const S = load();
 function load() {
@@ -470,6 +471,7 @@ function render() {
   const t = cur();
   if (!t) view = 'home';
   tabs.classList.toggle('hidden', view === 'home');
+  document.body.classList.toggle('tabsHidden', view === 'home');
   backBtn.classList.toggle('hidden', view === 'home');
   titleEl.textContent = view === 'home' ? 'Field' : t.name;
   tabs.querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.tab === view));
