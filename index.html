@@ -19,24 +19,34 @@
     --tabbar: 62px;
   }
   * { box-sizing: border-box; margin: 0; }
-  html, body { height: 100%; }
+  html { height: 100%; }
   body {
+    /* App shell: the body never scrolls; only <main> does. The tab bar is an ordinary flex
+       child pinned by layout, not position:fixed — iOS cannot detach it (keyboard, pickers,
+       short pages, scroll clamps: none of it applies to normal flow). */
+    height: 100vh;
+    height: 100dvh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
     font: 16px/1.45 -apple-system, "Segoe UI", Roboto, sans-serif;
     background: var(--bg); color: var(--ink);
-    overflow-x: hidden;
   }
   header.app {
     background: var(--navy); color: #fff;
     padding: calc(10px + env(safe-area-inset-top)) 14px 10px;
     display: flex; align-items: center; gap: 10px;
-    position: sticky; top: 0; z-index: 5;
+    flex: 0 0 auto; order: 1;
   }
   header.app .brand { height: 20px; width: auto; flex-shrink: 0; }
   header.app h1 { font-size: 16px; font-weight: 600; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; opacity: .95; }
   header.app button { background: rgba(255,255,255,.16); color: #fff; border: 0; border-radius: 8px; padding: 8px 12px; font-size: 14px; flex-shrink: 0; }
   main {
-    padding: 14px 14px calc(var(--tabbar) + env(safe-area-inset-bottom) + 24px);
-    max-width: 560px; margin: 0 auto;
+    flex: 1 1 auto; order: 2; min-height: 0;
+    overflow-y: auto; -webkit-overflow-scrolling: touch;
+    overflow-x: hidden;
+    padding: 14px 14px 24px;
+    width: 100%; max-width: 560px; margin: 0 auto;
   }
   .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px; margin-bottom: 12px; }
   .card h2 { font-size: 15px; margin-bottom: 8px; }
@@ -102,8 +112,9 @@
   @keyframes blink { 50% { opacity: .25; } }
   /* tab bar */
   nav.tabs {
-    position: fixed; left: 0; right: 0; bottom: 0; display: flex; background: #fff;
-    border-top: 1px solid var(--line); padding-bottom: env(safe-area-inset-bottom); z-index: 5;
+    flex: 0 0 auto; order: 4;
+    display: flex; background: #fff;
+    border-top: 1px solid var(--line); padding-bottom: env(safe-area-inset-bottom);
   }
   nav.tabs button { flex: 1; border: 0; background: none; padding: 9px 2px 7px; font-size: 11.5px; color: var(--muted); }
   nav.tabs button.on { color: var(--green); font-weight: 700; }
@@ -115,9 +126,10 @@
   .err { background: #fef2f2; border-color: #fecaca; color: var(--red); }
   .hidden { display: none !important; }
   .banner {
-    position: sticky; top: 0; z-index: 6; display: flex; align-items: center; gap: 10px;
+    flex: 0 0 auto; order: 0;
+    display: flex; align-items: center; gap: 10px;
     background: #fff7ed; border-bottom: 1px solid #fed7aa; color: #9a3412;
-    padding: 9px 14px; font-size: 13.5px;
+    padding: calc(6px + env(safe-area-inset-top)) 14px 9px; font-size: 13.5px;
   }
   .banner.update {
     /* Bottom placement: the top of a home-screen app sits under the iPhone status bar/notch,
@@ -148,9 +160,11 @@
   .lightbox img { max-width: 100%; max-height: 88%; border-radius: 8px; }
   .lightbox .cap { position: absolute; bottom: calc(14px + env(safe-area-inset-bottom)); left: 0; right: 0; text-align: center; color: #e2e8f0; font-size: 13px; padding: 0 20px; }
   footer.status {
+    flex: 0 0 auto; order: 3;
     text-align: center; color: var(--muted); font-size: 12px;
-    padding: 6px 14px calc(var(--tabbar) + env(safe-area-inset-bottom) + 10px);
-    margin-top: -46px;
+    padding: 4px 14px 5px;
+    border-top: 1px solid var(--line);
+    background: var(--bg);
   }
   .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; vertical-align: middle; margin-right: 4px; }
   .dot.on { background: #22c55e; } .dot.off { background: #94a3b8; }
@@ -182,7 +196,7 @@
    either one bundle file (data + photos + voice memos) that desktop ARIS imports
    directly, or plain CSVs. */
 
-const APP_VERSION = '2.2.4';
+const APP_VERSION = '2.3.0';
 const LS = 'arisField.v1';
 const S = load();
 function load() {
@@ -390,11 +404,8 @@ function objUrl(blob) { const u = URL.createObjectURL(blob); objectUrls.push(u);
 function render() {
   freeUrls();
   stopRecorder(false);
-  // iOS detail: switching to a shorter view while scrolled down makes iOS clamp the scroll
-  // and can leave position:fixed chrome (the tab bar) detached above its true spot. Resetting
-  // to the top before the swap re-pins it — and every tab starting at its top is better UX
-  // anyway. A follow-up nudge after paint covers the cases where the clamp lands late.
-  window.scrollTo(0, 0);
+  // Every tab opens at its top (main is the app's only scroll container now).
+  main.scrollTo(0, 0);
   const t = cur();
   if (!t) view = 'home';
   tabs.classList.toggle('hidden', view === 'home');
@@ -409,11 +420,6 @@ function render() {
   else if (view === 'notes') renderNotes(t);
   else if (view === 'save') renderSave(t);
   if (flash) { const n = document.createElement('div'); n.className = 'note' + (flash.err ? ' err' : ''); n.textContent = flash.text; main.prepend(n); flash = null; }
-  requestAnimationFrame(() => {
-    window.scrollTo(0, 0);
-    window.scrollBy(0, 1);
-    window.scrollBy(0, -1);
-  });
 }
 
 /* ── home ───────────────────────────────────────────── */
@@ -964,11 +970,8 @@ render();
     if (open === kbOpen) return;
     kbOpen = open;
     chrome().forEach((el) => el.classList.toggle('kbHidden', open));
-    if (!open) {
-      // iOS sometimes leaves fixed elements detached after the keyboard closes; a 1px scroll
-      // nudge forces a re-pin.
-      requestAnimationFrame(() => { window.scrollBy(0, 1); window.scrollBy(0, -1); });
-    }
+    // Static layout: nothing to re-pin after the keyboard — hiding the chrome while typing
+    // simply gives <main> the extra room.
   };
   // Two independent signals, OR-ed: iOS resizes the visual viewport for the text keyboard,
   // but the SELECT/date picker wheel raises WITHOUT a resize — focus tracking catches those.
