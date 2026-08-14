@@ -35,40 +35,24 @@
   body.sun header.app { background: #000; }
   #sunBtn { background: rgba(255,255,255,.16); color: #fff; border: 0; border-radius: 8px; padding: 8px 11px; font-size: 15px; flex-shrink: 0; }
   body.sun #sunBtn { background: #ffd700; color: #000; font-weight: 700; }
-  html { height: 100%; }
+  html, body { height: 100%; }
   body {
-    /* App shell: the body never scrolls; only <main> does. The tab bar is an ordinary flex
-       child pinned by layout, not position:fixed — iOS cannot detach it (keyboard, pickers,
-       short pages, scroll clamps: none of it applies to normal flow). */
-    /* The shell is sized from the MEASURED visible viewport (--appH, set by JS from
-       visualViewport) because iOS standalone under-reports layout height after keyboards/
-       rotations, leaving inset:0 / 100dvh shells ending above the real screen bottom. */
-    position: fixed;
-    top: 0; left: 0; right: 0;
-    height: 100vh;
-    height: 100dvh;
-    height: var(--appH, 100dvh);
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
     font: 16px/1.45 -apple-system, "Segoe UI", Roboto, sans-serif;
     background: var(--bg); color: var(--ink);
+    overflow-x: hidden;
   }
   header.app {
     background: var(--navy); color: #fff;
     padding: calc(10px + env(safe-area-inset-top)) 14px 10px;
     display: flex; align-items: center; gap: 10px;
-    flex: 0 0 auto; order: 1;
+    position: sticky; top: 0; z-index: 5;
   }
   header.app .brand { height: 20px; width: auto; flex-shrink: 0; }
   header.app h1 { font-size: 16px; font-weight: 600; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; opacity: .95; }
   header.app button { background: rgba(255,255,255,.16); color: #fff; border: 0; border-radius: 8px; padding: 8px 12px; font-size: 14px; flex-shrink: 0; }
   main {
-    flex: 1 1 auto; order: 2; min-height: 0;
-    overflow-y: auto; -webkit-overflow-scrolling: touch;
-    overflow-x: hidden;
-    padding: 14px 14px calc(var(--barH2) + 26px);
-    width: 100%; max-width: 560px; margin: 0 auto;
+    padding: 14px 14px calc(var(--tabbar) + env(safe-area-inset-bottom) + 44px);
+    max-width: 560px; margin: 0 auto;
   }
   .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px; margin-bottom: 12px; }
   .card h2 { font-size: 15px; margin-bottom: 8px; }
@@ -134,11 +118,8 @@
   @keyframes blink { 50% { opacity: .25; } }
   /* tab bar */
   nav.tabs {
-    position: fixed; left: 0; right: 0; z-index: 5;
-    top: calc(var(--vvB, 100vh) - var(--barH2));
-    display: flex; background: #fff;
-    border-top: 1px solid var(--line);
-    padding-bottom: max(4px, calc(env(safe-area-inset-bottom) - 22px));
+    position: fixed; left: 0; right: 0; bottom: 0; display: flex; background: #fff;
+    border-top: 1px solid var(--line); padding-bottom: env(safe-area-inset-bottom); z-index: 5;
   }
   body.sun nav.tabs { background: #fff; }
   nav.tabs button { flex: 1; border: 0; background: none; padding: 9px 2px 7px; font-size: 11.5px; color: var(--muted); }
@@ -151,10 +132,9 @@
   .err { background: #fef2f2; border-color: #fecaca; color: var(--red); }
   .hidden { display: none !important; }
   .banner {
-    flex: 0 0 auto; order: 0;
-    display: flex; align-items: center; gap: 10px;
+    position: sticky; top: 0; z-index: 6; display: flex; align-items: center; gap: 10px;
     background: #fff7ed; border-bottom: 1px solid #fed7aa; color: #9a3412;
-    padding: calc(6px + env(safe-area-inset-top)) 14px 9px; font-size: 13.5px;
+    padding: 9px 14px; font-size: 13.5px;
   }
   .banner.update {
     /* Bottom placement: the top of a home-screen app sits under the iPhone status bar/notch,
@@ -185,15 +165,10 @@
   .lightbox img { max-width: 100%; max-height: 88%; border-radius: 8px; }
   .lightbox .cap { position: absolute; bottom: calc(14px + env(safe-area-inset-bottom)); left: 0; right: 0; text-align: center; color: #e2e8f0; font-size: 13px; padding: 0 20px; }
   footer.status {
-    position: fixed; left: 0; right: 0; z-index: 5;
-    top: calc(var(--vvB, 100vh) - var(--barH2) - 19px);
-    height: 19px; overflow: hidden;
-    text-align: center; color: var(--muted); font-size: 10.5px; line-height: 1.3;
-    padding: 2px 14px;
-    border-top: 1px solid var(--line);
-    background: var(--bg);
+    text-align: center; color: var(--muted); font-size: 11px;
+    padding: 6px 14px calc(var(--tabbar) + env(safe-area-inset-bottom) + 10px);
+    margin-top: -34px;
   }
-  body.tabsHidden footer.status { top: calc(var(--vvB, 100vh) - 19px); }
   .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; vertical-align: middle; margin-right: 4px; }
   .dot.on { background: #22c55e; } .dot.off { background: #94a3b8; }
 </style>
@@ -225,7 +200,7 @@
    either one bundle file (data + photos + voice memos) that desktop ARIS imports
    directly, or plain CSVs. */
 
-const APP_VERSION = '2.3.8';
+const APP_VERSION = '2.4.0';
 const LS = 'arisField.v1';
 const S = load();
 function load() {
@@ -469,12 +444,12 @@ function objUrl(blob) { const u = URL.createObjectURL(blob); objectUrls.push(u);
 function render() {
   freeUrls();
   stopRecorder(false);
-  // Every tab opens at its top (main is the app's only scroll container now).
-  main.scrollTo(0, 0);
+  // Every tab opens at its top; the window scroll also lets iOS re-pin fixed chrome after
+  // a keyboard session (the self-heal old versions had by accident).
+  window.scrollTo(0, 0);
   const t = cur();
   if (!t) view = 'home';
   tabs.classList.toggle('hidden', view === 'home');
-  document.body.classList.toggle('tabsHidden', view === 'home');
   scheduleHeal();
   backBtn.classList.toggle('hidden', view === 'home');
   titleEl.textContent = view === 'home' ? 'Field' : t.name;
@@ -1029,26 +1004,6 @@ render();
    (confirmed on-device: the gap equals the accessory bar exactly). The only known cure is to
    make WebKit recompute the viewport: give the page something to scroll for one frame, scroll
    it, snap back. Run whenever the reported window is suspiciously short. */
-/* --vvB: the bar's anchor — the MEASURED visible bottom (visualViewport), refreshed on
-   viewport events + a slow poll. Pure positioning: no scrolling, no reflow tricks, no glitch. */
-var lastVvB = 0;
-function syncVvB() {
-  const vv = window.visualViewport;
-  const b = Math.round(vv ? vv.height + vv.offsetTop : window.innerHeight);
-  if (b > 0 && b !== lastVvB) {
-    lastVvB = b;
-    document.documentElement.style.setProperty('--vvB', b + 'px');
-  }
-}
-syncVvB();
-if (window.visualViewport) {
-  window.visualViewport.addEventListener('resize', syncVvB);
-  window.visualViewport.addEventListener('scroll', syncVvB);
-}
-window.addEventListener('resize', syncVvB);
-window.addEventListener('orientationchange', () => setTimeout(syncVvB, 300));
-setInterval(syncVvB, 1000);
-
 /* Viewport heal, SELF-CALIBRATED: learn this device's healthy shortfall at launch and only run
    when the deficit GROWS past it (the stale-after-keyboard state). Event-driven only — never
    on an interval — with a cooldown, so it can't loop or flicker. */
@@ -1071,7 +1026,6 @@ function healViewport() {
   setTimeout(() => {
     window.scrollTo(0, 0);
     html.style.height = '';
-    syncVvB();
   }, 60);
 }
 var healTimer = null; // var: render() runs before this line, let would TDZ-throw
@@ -1083,30 +1037,7 @@ document.addEventListener('focusout', scheduleHeal);
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') scheduleHeal(); });
 window.addEventListener('orientationchange', () => setTimeout(() => {
   baselineDeficit = screen.height - window.innerHeight;
-  syncVvB();
 }, 600));
-
-/* Size the shell from the truth: visualViewport reports the actual visible area even when
-   iOS's layout viewport is stale. Updated on every viewport change and after orientation. */
-(function shellSizer() {
-  const root = document.documentElement;
-  const apply = () => {
-    const vv = window.visualViewport;
-    const h = vv ? Math.round(vv.height + vv.offsetTop) : window.innerHeight;
-    root.style.setProperty('--appH', h + 'px');
-  };
-  apply();
-  const vv = window.visualViewport;
-  if (vv) {
-    vv.addEventListener('resize', apply);
-    vv.addEventListener('scroll', apply);
-  }
-  window.addEventListener('resize', apply);
-  window.addEventListener('orientationchange', () => setTimeout(apply, 250));
-  // Belt & suspenders: iOS occasionally settles late after launch/rotation.
-  setTimeout(apply, 500);
-  setTimeout(apply, 1500);
-})();
 
 /* Keyboard-aware chrome: hide the fixed bottom bar (and floating banners) while the on-screen
    keyboard is open, and nudge scroll on close so iOS re-pins position:fixed correctly. */
