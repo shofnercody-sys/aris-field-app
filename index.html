@@ -38,11 +38,14 @@
     /* App shell: the body never scrolls; only <main> does. The tab bar is an ordinary flex
        child pinned by layout, not position:fixed — iOS cannot detach it (keyboard, pickers,
        short pages, scroll clamps: none of it applies to normal flow). */
-    /* position:fixed inset:0 pins the shell to the physical screen edges (with
-       viewport-fit=cover), so the bar is flush with the bottom on every iOS version -
-       100vh/100dvh can leave a sliver on some builds. */
+    /* The shell is sized from the MEASURED visible viewport (--appH, set by JS from
+       visualViewport) because iOS standalone under-reports layout height after keyboards/
+       rotations, leaving inset:0 / 100dvh shells ending above the real screen bottom. */
     position: fixed;
-    inset: 0;
+    top: 0; left: 0; right: 0;
+    height: 100vh;
+    height: 100dvh;
+    height: var(--appH, 100dvh);
     overflow: hidden;
     display: flex;
     flex-direction: column;
@@ -218,7 +221,7 @@
    either one bundle file (data + photos + voice memos) that desktop ARIS imports
    directly, or plain CSVs. */
 
-const APP_VERSION = '2.3.2';
+const APP_VERSION = '2.3.3';
 const LS = 'arisField.v1';
 const S = load();
 function load() {
@@ -1014,6 +1017,28 @@ function pickFile(cb) {
 tabs.onclick = (e) => { const b = e.target.closest('button'); if (b) { view = b.dataset.tab; render(); } };
 backBtn.onclick = () => { view = 'home'; render(); };
 render();
+
+/* Size the shell from the truth: visualViewport reports the actual visible area even when
+   iOS's layout viewport is stale. Updated on every viewport change and after orientation. */
+(function shellSizer() {
+  const root = document.documentElement;
+  const apply = () => {
+    const vv = window.visualViewport;
+    const h = vv ? Math.round(vv.height + vv.offsetTop) : window.innerHeight;
+    root.style.setProperty('--appH', h + 'px');
+  };
+  apply();
+  const vv = window.visualViewport;
+  if (vv) {
+    vv.addEventListener('resize', apply);
+    vv.addEventListener('scroll', apply);
+  }
+  window.addEventListener('resize', apply);
+  window.addEventListener('orientationchange', () => setTimeout(apply, 250));
+  // Belt & suspenders: iOS occasionally settles late after launch/rotation.
+  setTimeout(apply, 500);
+  setTimeout(apply, 1500);
+})();
 
 /* Keyboard-aware chrome: hide the fixed bottom bar (and floating banners) while the on-screen
    keyboard is open, and nudge scroll on close so iOS re-pins position:fixed correctly. */
