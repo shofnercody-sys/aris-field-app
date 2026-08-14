@@ -166,7 +166,7 @@
    either one bundle file (data + photos + voice memos) that desktop ARIS imports
    directly, or plain CSVs. */
 
-const APP_VERSION = '2.1';
+const APP_VERSION = '2.2';
 const LS = 'arisField.v1';
 const S = load();
 function load() {
@@ -317,14 +317,25 @@ async function trialSection(t) {
     if (m.kind === 'photo') photos.push({ ...rec, plot: m.plot || '' });
     else voice.push(rec);
   }
-  return { name: t.name, cols: t.cols, plots: t.plots, log: t.log, notes: t.notes, photos, voice, assessmentDate: t.asmtDate || '' };
+  const assessments = [
+    ...(t.sessions || []),
+    ...(t.plots.some(p2 => Object.keys(p2.vals).length)
+      ? [{ date: t.asmtDate || '', plots: t.plots }]
+      : []),
+  ];
+  return {
+    name: t.name, cols: t.cols, plots: t.plots, log: t.log, notes: t.notes, photos, voice,
+    assessmentDate: t.asmtDate || '',
+    // v3: every dated rating set. `plots`/`assessmentDate` above stay for older desktops.
+    assessments,
+  };
 }
 /* One trial (default) or every trial on the phone, as a single .arisfield file. */
 async function buildBundle(trials) {
   const sections = [];
   for (const t of trials) sections.push(await trialSection(t));
   return JSON.stringify({
-    format: 'aris-field-bundle', version: 2, appVersion: APP_VERSION,
+    format: 'aris-field-bundle', version: 3, appVersion: APP_VERSION,
     exportedAt: new Date().toISOString(), trials: sections,
   });
 }
@@ -589,7 +600,10 @@ function renderResults(t) {
       <p class="muted" style="margin-top:6px">Highest mean ${hi.toFixed(2)}, lowest ${lo.toFixed(2)} · sorted high→low.</p>
     </div>`;
   }).join('');
-  main.innerHTML = cards +
+  const sessNote = (t.sessions || []).length
+    ? `<p class="muted center">Showing the CURRENT rating day. ${t.sessions.length} earlier day${t.sessions.length === 1 ? '' : 's'} (${t.sessions.map(x => x.date).join(', ')}) are archived and will be in the bundle \u2014 desktop ARIS turns them into progress curves.</p>`
+    : '';
+  main.innerHTML = cards + sessNote +
     '<p class="muted center">Simple field means — no significance testing here. Import into desktop ARIS for the full ANOVA, letters and CV.</p>';
 }
 
@@ -818,6 +832,13 @@ function renderSave(t) {
       <label class="f"><input type="date" id="asmtDate" value="${esc(t.asmtDate || new Date().toISOString().slice(0, 10))}" /></label>
     </div>
     <div class="card">
+      <h2>Rating the same plots again later?</h2>
+      <p class="muted">${(t.sessions || []).length
+        ? `${t.sessions.length} earlier assessment day${t.sessions.length === 1 ? '' : 's'} saved on this phone (${t.sessions.map(x => x.date).join(', ')}). All of them ride in the bundle.`
+        : 'When you come back for the next rating date, archive today\u2019s values first \u2014 the grid clears for fresh entry and every dated set is kept and bundled.'}</p>
+      <button class="btn secondary" id="newDay">📆 Start new assessment day</button>
+    </div>
+    <div class="card">
       <h2>Save everything as one file</h2>
       <p class="muted">One .arisfield file with your entered values, field log, notes, photos and voice memos. Email or AirDrop it to the computer, then just <b>double-click the file</b> — ARIS opens and imports everything into the right trials automatically (desktop 4.7.13+). Dragging the file onto any ARIS page works too.</p>
       <button class="btn" id="exBundle">💾 Save this trial (one file)</button>
@@ -841,6 +862,27 @@ function renderSave(t) {
       n(t.notes.length, 'note', 'notes'), n(ph, 'photo', 'photos'), n(vm, 'voice memo', 'voice memos'),
     ].join(', ') + '.';
   });
+  const newDayBtn = main.querySelector('#newDay');
+  newDayBtn.onclick = () => {
+    const filledNow = t.plots.reduce((s2, p2) => s2 + Object.keys(p2.vals).length, 0);
+    if (!filledNow) { flash = { text: 'No values entered yet \u2014 nothing to archive.', err: true }; render(); return; }
+    if (newDayBtn.dataset.armed) {
+      t.sessions = t.sessions || [];
+      t.sessions.push({
+        date: t.asmtDate || new Date().toISOString().slice(0, 10),
+        plots: t.plots.map(p2 => ({ plot: p2.plot, rep: p2.rep, trt: p2.trt, vals: { ...p2.vals } })),
+      });
+      t.plots.forEach(p2 => { p2.vals = {}; });
+      t.asmtDate = new Date().toISOString().slice(0, 10);
+      save();
+      flash = { text: `Assessment day archived (${t.sessions[t.sessions.length - 1].date}). The grid is clear for the next rating \u2014 all ${t.sessions.length + 1} day(s) will be in the bundle.` };
+      render();
+    } else {
+      newDayBtn.dataset.armed = '1';
+      newDayBtn.textContent = `Archive ${filledNow} value${filledNow === 1 ? '' : 's'} for ${t.asmtDate || 'today'} and clear the grid \u2014 tap again`;
+      setTimeout(() => { if (newDayBtn.isConnected) { delete newDayBtn.dataset.armed; newDayBtn.textContent = '📆 Start new assessment day'; } }, 6000);
+    }
+  };
   const dateIn = main.querySelector('#asmtDate');
   if (dateIn) {
     if (!t.asmtDate) { t.asmtDate = dateIn.value; localStorage.setItem(LS, JSON.stringify(S)); }
