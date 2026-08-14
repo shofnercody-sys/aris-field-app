@@ -222,7 +222,7 @@
    either one bundle file (data + photos + voice memos) that desktop ARIS imports
    directly, or plain CSVs. */
 
-const APP_VERSION = '2.3.6';
+const APP_VERSION = '2.3.7';
 const LS = 'arisField.v1';
 const S = load();
 function load() {
@@ -472,6 +472,7 @@ function render() {
   if (!t) view = 'home';
   tabs.classList.toggle('hidden', view === 'home');
   document.body.classList.toggle('tabsHidden', view === 'home');
+  scheduleHeal();
   backBtn.classList.toggle('hidden', view === 'home');
   titleEl.textContent = view === 'home' ? 'Field' : t.name;
   tabs.querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.tab === view));
@@ -1019,6 +1020,37 @@ function pickFile(cb) {
 tabs.onclick = (e) => { const b = e.target.closest('button'); if (b) { view = b.dataset.tab; render(); } };
 backBtn.onclick = () => { view = 'home'; render(); };
 render();
+
+/* iOS standalone keeps the window SHRUNK by the keyboard-accessory height (~55pt) after the
+   keyboard closes — every fixed/flex bottom then floats that far above the real screen edge
+   (confirmed on-device: the gap equals the accessory bar exactly). The only known cure is to
+   make WebKit recompute the viewport: give the page something to scroll for one frame, scroll
+   it, snap back. Run whenever the reported window is suspiciously short. */
+function healViewport() {
+  if (window.innerWidth > window.innerHeight) return; // portrait only — screen.height is portrait-major
+  const deficit = screen.height - window.innerHeight;
+  if (deficit < 40 || deficit > 400) return; // 0–40: healthy (insets); >400: real keyboard is open
+  const kb = window.visualViewport && window.innerHeight - window.visualViewport.height > 120;
+  if (kb) return; // keyboard genuinely open — don't fight it
+  const html = document.documentElement;
+  html.style.height = (window.innerHeight + deficit + 2) + 'px';
+  window.scrollTo(0, 2);
+  setTimeout(() => {
+    window.scrollTo(0, 0);
+    html.style.height = '';
+  }, 60);
+}
+var healTimer = null; // var: render() runs before this line, let would TDZ-throw
+function scheduleHeal() {
+  clearTimeout(healTimer);
+  healTimer = setTimeout(healViewport, 250);
+}
+document.addEventListener('focusout', scheduleHeal);
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') scheduleHeal(); });
+window.addEventListener('orientationchange', () => setTimeout(healViewport, 400));
+setTimeout(healViewport, 700);
+setTimeout(healViewport, 2000);
+setInterval(healViewport, 4000); // stale state can appear without any event we can hook
 
 /* Size the shell from the truth: visualViewport reports the actual visible area even when
    iOS's layout viewport is stale. Updated on every viewport change and after orientation. */
