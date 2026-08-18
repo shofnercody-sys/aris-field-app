@@ -35,22 +35,38 @@
   body.sun header.app { background: #000; }
   #sunBtn { background: rgba(255,255,255,.16); color: #fff; border: 0; border-radius: 8px; padding: 8px 11px; font-size: 15px; flex-shrink: 0; }
   body.sun #sunBtn { background: #ffd700; color: #000; font-weight: 700; }
-  /* License gate: full-screen card shown until an email in the registry activates. */
+  /* License gate: full-screen key-activation card (no demo mode, no self-serve trial). */
   #licGate { position: fixed; inset: 0; z-index: 9999; background: var(--bg); display: flex;
-    align-items: center; justify-content: center; padding: 20px; }
-  #licGate .lic-card { width: 100%; max-width: 400px; background: var(--card);
-    border: 1px solid var(--line); border-radius: 14px; padding: 28px 22px; text-align: center; }
-  #licGate .lic-logo { font-size: 38px; margin-bottom: 8px; }
-  #licGate h1 { font-size: 22px; color: var(--navy); margin-bottom: 2px; }
+    align-items: flex-start; justify-content: center; padding: 20px; overflow-y: auto; }
+  #licGate .lic-card { width: 100%; max-width: 420px; background: var(--card); margin: auto;
+    border: 1px solid var(--line); border-radius: 14px; padding: 26px 20px 20px; text-align: center; }
+  #licGate .lic-logo { width: 64px; height: 64px; border-radius: 14px; margin-bottom: 10px; }
+  #licGate h1 { font-size: 21px; color: var(--ink); margin-bottom: 4px; }
   #licGate .lic-tag { font-size: 13px; color: var(--muted); margin-bottom: 18px; }
-  #licGate .lic-notice { text-align: left; font-size: 13.5px; line-height: 1.55; background: #eef4ee;
-    border: 1px solid var(--line); border-radius: 9px; padding: 11px 13px; margin-bottom: 16px; }
-  #licGate .lic-notice a { color: var(--green); font-weight: 600; text-decoration: none; }
+  #licGate .lic-notice { text-align: left; font-size: 13px; line-height: 1.5; background: #eef4ee;
+    border: 1px solid var(--line); border-radius: 9px; padding: 10px 12px; margin-bottom: 14px; }
+  #licGate .lic-label { text-align: left; font-size: 11px; font-weight: 700; letter-spacing: .8px;
+    color: var(--muted); margin-bottom: 6px; }
   #licGate input { width: 100%; border: 1px solid var(--line); border-radius: 9px; padding: 12px;
     font-size: 16px; margin-bottom: 10px; background: #fff; color: var(--ink); }
+  #licGate input.lic-key { font-family: ui-monospace, Menlo, Consolas, monospace;
+    letter-spacing: 1.5px; text-align: center; text-transform: uppercase; }
   #licGate .lic-msg { font-size: 12.5px; text-align: left; margin-top: 10px; line-height: 1.5; }
   #licGate .lic-msg.err { color: var(--red); }
   #licGate .lic-msg.ok { color: var(--green); }
+  #licGate .lic-div { display: flex; align-items: center; gap: 10px; margin: 20px 0 10px;
+    font-size: 11px; font-weight: 700; letter-spacing: .8px; color: var(--muted); }
+  #licGate .lic-div::before, #licGate .lic-div::after { content: ''; flex: 1; border-top: 1px solid var(--line); }
+  #licGate .lic-alts { display: flex; gap: 10px; }
+  #licGate .lic-alt { flex: 1; padding: 11px 6px; border: 1px solid var(--line); border-radius: 9px;
+    background: #fff; color: var(--ink); font-size: 13.5px; font-weight: 600; text-decoration: none; }
+  #licGate .lic-tiers-hdr { text-align: left; margin: 20px 0 8px; font-size: 11px; font-weight: 700;
+    letter-spacing: .8px; color: var(--muted); }
+  #licGate .lic-tiers { border: 1px solid var(--line); border-radius: 9px; overflow: hidden; }
+  #licGate .lic-tier { display: flex; justify-content: space-between; align-items: baseline;
+    padding: 9px 12px; font-size: 13px; border-bottom: 1px solid var(--line); text-align: left; }
+  #licGate .lic-tier:last-child { border-bottom: none; }
+  #licGate .lic-tier b { color: var(--green); white-space: nowrap; margin-left: 12px; }
   #licGate .lic-foot { font-size: 11px; color: var(--muted); margin-top: 16px; }
   html, body { height: 100%; }
   body {
@@ -221,7 +237,7 @@
    either one bundle file (data + photos + voice memos) that desktop ARIS imports
    directly, or plain CSVs. */
 
-const APP_VERSION = '2.5.0';
+const APP_VERSION = '2.5.1';
 const LS = 'arisField.v1';
 const S = load();
 function load() {
@@ -247,8 +263,15 @@ function licState(l) {
   const d = l.start ? licDaysLeft(l.start) : 0;
   return d > 0 ? { status: 'trial', lic: l, daysLeft: d } : { status: 'expired', lic: l };
 }
-async function licHash(email) {
-  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(email));
+function licNorm(k) { return String(k || '').toUpperCase().replace(/[^A-Z0-9]/g, ''); }
+function licFormat(k) {
+  const n = licNorm(k);
+  const body = n.indexOf('ARIS') === 0 ? n.slice(4) : n;
+  const groups = body.match(/.{1,4}/g) || [];
+  return ['ARIS'].concat(groups).join('-');
+}
+async function licHash(text) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
   return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
 }
 async function licRegistry() {
@@ -259,16 +282,19 @@ async function licRegistry() {
     return j && typeof j === 'object' ? (j.emails || j) : null;
   } catch (e) { return null; }
 }
-async function licActivate(email) {
-  const norm = String(email || '').trim().toLowerCase();
-  if (!/^\S+@\S+\.\S+$/.test(norm)) return { ok: false, reason: 'Enter a valid email address.' };
+async function licActivate(rawKey, name, email) {
+  const norm = licNorm(rawKey);
+  if (norm.length < 8) return { ok: false, reason: 'Enter the license key exactly as it appears in your confirmation email (ARIS-XXXX-XXXX-XXXX-XXXX).' };
   if (!window.crypto || !crypto.subtle) return { ok: false, reason: 'Activation needs a secure (https) connection.' };
   const reg = await licRegistry();
   if (!reg) return { ok: false, reason: 'Could not reach the license server. Check your connection and try again.' };
-  const rec = reg[await licHash(norm)];
-  if (!rec) return { ok: false, reason: 'No license found for this email. Contact ' + LIC_CONTACT + ' to get set up.' };
-  const lic = { email: norm, kind: rec.kind, start: rec.start, activatedAt: new Date().toISOString() };
-  if (licState(lic).status === 'expired') return { ok: false, reason: 'This 30-day trial has ended. Contact ' + LIC_CONTACT + ' to continue with a full license.' };
+  const hash = await licHash(norm);
+  const rec = reg[hash];
+  if (!rec) return { ok: false, reason: 'This license key was not recognized. Check it for typos, or contact ' + LIC_CONTACT + '.' };
+  const lic = { key: licFormat(norm), hash: hash, kind: rec.kind, start: rec.start,
+    activatedAt: new Date().toISOString(),
+    name: (name || '').trim() || undefined, email: (email || '').trim() || undefined };
+  if (licState(lic).status === 'expired') return { ok: false, reason: 'This 30-day trial key has expired. Contact ' + LIC_CONTACT + ' to continue with a full license.' };
   licSave(lic);
   return { ok: true, lic };
 }
@@ -277,9 +303,10 @@ async function licRevalidate() {
   if (!l || !navigator.onLine || !window.crypto || !crypto.subtle) return;
   const reg = await licRegistry();
   if (!reg) return;
-  const rec = reg[await licHash(l.email)];
+  const hash = l.hash || (l.key ? await licHash(licNorm(l.key)) : l.email ? await licHash(String(l.email).trim().toLowerCase()) : null);
+  const rec = hash ? reg[hash] : null;
   if (!rec) { licSave(null); }
-  else { licSave({ email: l.email, kind: rec.kind, start: rec.start, activatedAt: l.activatedAt }); }
+  else { licSave(Object.assign({}, l, { hash: hash, kind: rec.kind, start: rec.start })); }
   showGateIfNeeded();
   if (typeof paintFooter === 'function') paintFooter();
 }
@@ -289,29 +316,43 @@ function showGateIfNeeded() {
   if (st.status === 'full' || st.status === 'trial') { if (g) g.remove(); return false; }
   if (!g) { g = document.createElement('div'); g.id = 'licGate'; document.body.appendChild(g); }
   const expired = st.status === 'expired';
+  const mailtoTrial = 'mailto:' + LIC_CONTACT + '?subject=' + encodeURIComponent('ARIS 30-day trial request') + '&body=' + encodeURIComponent('Hi Cody,\n\nI would like a 30-day ARIS trial key.\n\nName:\nOrganization:\n');
+  const mailtoBuy = 'mailto:' + LIC_CONTACT + '?subject=' + encodeURIComponent('ARIS license purchase') + '&body=' + encodeURIComponent('Hi Cody,\n\nI would like to buy an ARIS license.\n\nTier (Pro / Team / Enterprise):\nName:\nOrganization:\n');
   g.innerHTML =
     '<div class="lic-card">' +
-      '<div class="lic-logo">\ud83c\udf31</div>' +
-      '<h1>ARIS Field</h1>' +
-      '<div class="lic-tag">Agriculture Research Intelligence System</div>' +
-      '<div class="lic-notice">' +
-        (expired
-          ? 'The 30-day trial for <b>' + st.lic.email + '</b> has ended \u2014 your data is safe on this phone and will be right here when you continue. '
-          : 'ARIS Field is licensed software. ') +
-        'To purchase a license or arrange access, email <a href="mailto:' + LIC_CONTACT + '?subject=ARIS%20license">' + LIC_CONTACT + '</a> or visit <a href="https://aristrials.com" target="_blank" rel="noreferrer">aristrials.com</a>.' +
-      '</div>' +
-      '<input type="email" id="licEmail" placeholder="Licensed email" autocomplete="email" />' +
-      '<button class="btn" id="licGo">Activate</button>' +
+      '<img class="lic-logo" src="./icon-512.png" alt="ARIS" />' +
+      '<h1>Activate Your License</h1>' +
+      '<div class="lic-tag">Enter the license key from your purchase confirmation email</div>' +
+      (expired
+        ? '<div class="lic-notice">The 30-day trial key <b>' + st.lic.key + '</b> has expired \u2014 your data is safe on this phone and will be right here when you continue.</div>'
+        : '') +
+      '<div class="lic-label">LICENSE KEY</div>' +
+      '<input type="text" id="licKey" class="lic-key" placeholder="ARIS-XXXX-XXXX-XXXX-XXXX" autocomplete="off" spellcheck="false" autocapitalize="characters" />' +
+      '<input type="text" id="licName" placeholder="Your name (optional)" />' +
+      '<input type="email" id="licMail" placeholder="Your email (optional)" autocomplete="email" />' +
+      '<button class="btn" id="licGo">\u2713 Activate License</button>' +
       '<div class="lic-msg" id="licMsg"></div>' +
-      '<div class="lic-foot">Activation checks your email against your license \u2014 an internet connection is needed once.</div>' +
+      '<div class="lic-div">DON\u2019T HAVE A LICENSE?</div>' +
+      '<div class="lic-alts">' +
+        '<a class="lic-alt" href="' + mailtoTrial + '">\ud83c\udf9f Start 30-Day Trial</a>' +
+        '<a class="lic-alt" href="' + mailtoBuy + '">\ud83d\udcb3 Buy License</a>' +
+      '</div>' +
+      '<div class="lic-tiers-hdr">AVAILABLE TIERS</div>' +
+      '<div class="lic-tiers">' +
+        '<div class="lic-tier"><span>Trial \u00b7 30 Days</span><b>Free</b></div>' +
+        '<div class="lic-tier"><span>Pro \u00b7 Single Seat</span><b>$499 one-time</b></div>' +
+        '<div class="lic-tier"><span>Team \u00b7 5 Seats</span><b>$1,499 one-time</b></div>' +
+        '<div class="lic-tier"><span>Enterprise</span><b>$2,499 one-time</b></div>' +
+      '</div>' +
+      '<div class="lic-foot">Keys are issued by email from ' + LIC_CONTACT + ' \u00b7 aristrials.com</div>' +
     '</div>';
-  const input = g.querySelector('#licEmail');
+  const keyIn = g.querySelector('#licKey');
   const btn = g.querySelector('#licGo');
   const msg = g.querySelector('#licMsg');
   async function go() {
     btn.disabled = true; btn.textContent = 'Checking\u2026'; msg.textContent = ''; msg.className = 'lic-msg';
-    const res = await licActivate(input.value);
-    btn.disabled = false; btn.textContent = 'Activate';
+    const res = await licActivate(keyIn.value, g.querySelector('#licName').value, g.querySelector('#licMail').value);
+    btn.disabled = false; btn.textContent = '\u2713 Activate License';
     if (res.ok) {
       const s2 = licState(res.lic);
       msg.className = 'lic-msg ok';
@@ -323,7 +364,7 @@ function showGateIfNeeded() {
     }
   }
   btn.onclick = go;
-  input.onkeydown = (e) => { if (e.key === 'Enter') go(); };
+  keyIn.onkeydown = (e) => { if (e.key === 'Enter') go(); };
   return true;
 }
 

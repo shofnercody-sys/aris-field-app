@@ -1,6 +1,9 @@
 {
-  "_readme": "ARIS license registry. Keys are SHA-256 hashes of lowercased emails. kind: 'full' (never expires) or 'trial' (30 days from start).",
+  "_readme": "ARIS license registry. Keys are SHA-256 hashes of normalized license keys (uppercase alphanumerics only). kind: 'full' (never expires) or 'trial' (30 days from start).",
   "17335c42bc0c065190d0797079a6c08a1b87b0b7c2c9a00d39313a8e60a469eb": {
+    "kind": "full"
+  },
+  "6597a1cdcda9b331e50636e8a243a2a840234ba415d0ea54a8f4b19fccb9e6e8": {
     "kind": "full"
   }
 }
