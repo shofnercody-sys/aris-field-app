@@ -237,7 +237,7 @@
    either one bundle file (data + photos + voice memos) that desktop ARIS imports
    directly, or plain CSVs. */
 
-const APP_VERSION = '2.5.1';
+const APP_VERSION = '2.5.2';
 const LS = 'arisField.v1';
 const S = load();
 function load() {
@@ -252,7 +252,7 @@ function load() {
    the public registry only as SHA-256 hashes. An activated license is cached here and
    works offline; a revoked email drops on the next online launch. */
 const LIC_KEY = 'arisField.license';
-const LIC_CONTACT = 'shofnercody@gmail.com';
+const LIC_CONTACT = 'info@aristrials.com';
 const LIC_TRIAL_DAYS = 30;
 function licLoad() { try { return JSON.parse(localStorage.getItem(LIC_KEY)); } catch (e) { return null; } }
 function licSave(l) { if (l) localStorage.setItem(LIC_KEY, JSON.stringify(l)); else localStorage.removeItem(LIC_KEY); }
@@ -291,7 +291,8 @@ async function licActivate(rawKey, name, email) {
   const hash = await licHash(norm);
   const rec = reg[hash];
   if (!rec) return { ok: false, reason: 'This license key was not recognized. Check it for typos, or contact ' + LIC_CONTACT + '.' };
-  const lic = { key: licFormat(norm), hash: hash, kind: rec.kind, start: rec.start,
+  const lic = { key: licFormat(norm), hash: hash, kind: rec.kind,
+    start: rec.kind === 'trial' && !rec.start ? new Date().toISOString().slice(0, 10) : rec.start,
     activatedAt: new Date().toISOString(),
     name: (name || '').trim() || undefined, email: (email || '').trim() || undefined };
   if (licState(lic).status === 'expired') return { ok: false, reason: 'This 30-day trial key has expired. Contact ' + LIC_CONTACT + ' to continue with a full license.' };
@@ -306,7 +307,7 @@ async function licRevalidate() {
   const hash = l.hash || (l.key ? await licHash(licNorm(l.key)) : l.email ? await licHash(String(l.email).trim().toLowerCase()) : null);
   const rec = hash ? reg[hash] : null;
   if (!rec) { licSave(null); }
-  else { licSave(Object.assign({}, l, { hash: hash, kind: rec.kind, start: rec.start })); }
+  else { licSave(Object.assign({}, l, { hash: hash, kind: rec.kind, start: rec.start || l.start })); }
   showGateIfNeeded();
   if (typeof paintFooter === 'function') paintFooter();
 }
@@ -315,7 +316,8 @@ function showGateIfNeeded() {
   let g = document.getElementById('licGate');
   if (st.status === 'full' || st.status === 'trial') { if (g) g.remove(); return false; }
   if (!g) { g = document.createElement('div'); g.id = 'licGate'; document.body.appendChild(g); }
-  const expired = st.status === 'expired';
+  // An expired trial shows the SAME plain screen as a fresh install - a brand-new
+  // researcher receiving this device must never read 'your trial expired'.
   const mailtoTrial = 'mailto:' + LIC_CONTACT + '?subject=' + encodeURIComponent('ARIS 30-day trial request') + '&body=' + encodeURIComponent('Hi Cody,\n\nI would like a 30-day ARIS trial key.\n\nName:\nOrganization:\n');
   const mailtoBuy = 'mailto:' + LIC_CONTACT + '?subject=' + encodeURIComponent('ARIS license purchase') + '&body=' + encodeURIComponent('Hi Cody,\n\nI would like to buy an ARIS license.\n\nTier (Pro / Team / Enterprise):\nName:\nOrganization:\n');
   g.innerHTML =
@@ -323,10 +325,7 @@ function showGateIfNeeded() {
       '<img class="lic-logo" src="./icon-512.png" alt="ARIS" />' +
       '<h1>Activate Your License</h1>' +
       '<div class="lic-tag">Enter the license key from your purchase confirmation email</div>' +
-      (expired
-        ? '<div class="lic-notice">The 30-day trial key <b>' + st.lic.key + '</b> has expired \u2014 your data is safe on this phone and will be right here when you continue.</div>'
-        : '') +
-      '<div class="lic-label">LICENSE KEY</div>' +
+            '<div class="lic-label">LICENSE KEY</div>' +
       '<input type="text" id="licKey" class="lic-key" placeholder="ARIS-XXXX-XXXX-XXXX-XXXX" autocomplete="off" spellcheck="false" autocapitalize="characters" />' +
       '<input type="text" id="licName" placeholder="Your name (optional)" />' +
       '<input type="email" id="licMail" placeholder="Your email (optional)" autocomplete="email" />' +
@@ -340,11 +339,11 @@ function showGateIfNeeded() {
       '<div class="lic-tiers-hdr">AVAILABLE TIERS</div>' +
       '<div class="lic-tiers">' +
         '<div class="lic-tier"><span>Trial \u00b7 30 Days</span><b>Free</b></div>' +
-        '<div class="lic-tier"><span>Pro \u00b7 Single Seat</span><b>$499 one-time</b></div>' +
-        '<div class="lic-tier"><span>Team \u00b7 5 Seats</span><b>$1,499 one-time</b></div>' +
-        '<div class="lic-tier"><span>Enterprise</span><b>$2,499 one-time</b></div>' +
+        '<div class="lic-tier"><span>Pro \u00b7 1 Seat</span><b>$165/mo \u00b7 $1,650/yr</b></div>' +
+        '<div class="lic-tier"><span>Team \u00b7 5 Seats</span><b>$495/mo \u00b7 $4,950/yr</b></div>' +
+        '<div class="lic-tier"><span>Enterprise \u00b7 Unlimited</span><b>$995/mo \u00b7 $9,950/yr</b></div>' +
       '</div>' +
-      '<div class="lic-foot">Keys are issued by email from ' + LIC_CONTACT + ' \u00b7 aristrials.com</div>' +
+      '<div class="lic-foot">Yearly billing includes 2 months free. Keys are issued by email from ' + LIC_CONTACT + ' \u00b7 aristrials.com</div>' +
     '</div>';
   const keyIn = g.querySelector('#licKey');
   const btn = g.querySelector('#licGo');
