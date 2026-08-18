@@ -1,7 +1,7 @@
 /* ARIS Field service worker — makes the app work fully offline.
    Strategy: stale-while-revalidate for the shell (instant offline load, silent updates
    when online), cache-first for the immutable icons. Bump CACHE on breaking changes. */
-const CACHE = 'aris-field-v23';
+const CACHE = 'aris-field-v24';
 const SHELL = ['./', './index.html', './manifest.webmanifest', './icon-180.png', './icon-512.png', './logo-white.png'];
 
 self.addEventListener('install', (e) => {
@@ -25,6 +25,12 @@ self.addEventListener('activate', (e) => {
 
 self.addEventListener('fetch', (e) => {
   if (e.request.method !== 'GET') return;
+  // The license registry must always be fresh: network-only, no cache fallback -
+  // the app itself treats a failed fetch as "offline, keep the cached activation".
+  if (e.request.url.includes('licenses.json')) {
+    e.respondWith(fetch(e.request));
+    return;
+  }
   e.respondWith(
     caches.match(e.request).then((cached) => {
       const fetched = fetch(e.request)

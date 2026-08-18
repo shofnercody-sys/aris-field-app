@@ -35,6 +35,23 @@
   body.sun header.app { background: #000; }
   #sunBtn { background: rgba(255,255,255,.16); color: #fff; border: 0; border-radius: 8px; padding: 8px 11px; font-size: 15px; flex-shrink: 0; }
   body.sun #sunBtn { background: #ffd700; color: #000; font-weight: 700; }
+  /* License gate: full-screen card shown until an email in the registry activates. */
+  #licGate { position: fixed; inset: 0; z-index: 9999; background: var(--bg); display: flex;
+    align-items: center; justify-content: center; padding: 20px; }
+  #licGate .lic-card { width: 100%; max-width: 400px; background: var(--card);
+    border: 1px solid var(--line); border-radius: 14px; padding: 28px 22px; text-align: center; }
+  #licGate .lic-logo { font-size: 38px; margin-bottom: 8px; }
+  #licGate h1 { font-size: 22px; color: var(--navy); margin-bottom: 2px; }
+  #licGate .lic-tag { font-size: 13px; color: var(--muted); margin-bottom: 18px; }
+  #licGate .lic-notice { text-align: left; font-size: 13.5px; line-height: 1.55; background: #eef4ee;
+    border: 1px solid var(--line); border-radius: 9px; padding: 11px 13px; margin-bottom: 16px; }
+  #licGate .lic-notice a { color: var(--green); font-weight: 600; text-decoration: none; }
+  #licGate input { width: 100%; border: 1px solid var(--line); border-radius: 9px; padding: 12px;
+    font-size: 16px; margin-bottom: 10px; background: #fff; color: var(--ink); }
+  #licGate .lic-msg { font-size: 12.5px; text-align: left; margin-top: 10px; line-height: 1.5; }
+  #licGate .lic-msg.err { color: var(--red); }
+  #licGate .lic-msg.ok { color: var(--green); }
+  #licGate .lic-foot { font-size: 11px; color: var(--muted); margin-top: 16px; }
   html, body { height: 100%; }
   body {
     font: 16px/1.45 -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -204,12 +221,110 @@
    either one bundle file (data + photos + voice memos) that desktop ARIS imports
    directly, or plain CSVs. */
 
-const APP_VERSION = '2.4.1';
+const APP_VERSION = '2.5.0';
 const LS = 'arisField.v1';
 const S = load();
 function load() {
   try { const d = JSON.parse(localStorage.getItem(LS)); if (d && Array.isArray(d.trials)) return d; } catch (e) {}
   return { trials: [], currentId: null };
+}
+
+/* == Licensing ==
+   ARIS Field is licensed software: no demo mode, no self-serve trial. An email either is
+   in the hosted registry (Cody added it - 'full', or 'trial' with a start date; the 30-day
+   clock runs from that date) or activation fails with a contact address. Emails live in
+   the public registry only as SHA-256 hashes. An activated license is cached here and
+   works offline; a revoked email drops on the next online launch. */
+const LIC_KEY = 'arisField.license';
+const LIC_CONTACT = 'shofnercody@gmail.com';
+const LIC_TRIAL_DAYS = 30;
+function licLoad() { try { return JSON.parse(localStorage.getItem(LIC_KEY)); } catch (e) { return null; } }
+function licSave(l) { if (l) localStorage.setItem(LIC_KEY, JSON.stringify(l)); else localStorage.removeItem(LIC_KEY); }
+function licDaysLeft(start) { return Math.ceil((Date.parse(start) + LIC_TRIAL_DAYS * 86400000 - Date.now()) / 86400000); }
+function licState(l) {
+  if (!l) return { status: 'none' };
+  if (l.kind === 'full') return { status: 'full', lic: l };
+  const d = l.start ? licDaysLeft(l.start) : 0;
+  return d > 0 ? { status: 'trial', lic: l, daysLeft: d } : { status: 'expired', lic: l };
+}
+async function licHash(email) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(email));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+async function licRegistry() {
+  try {
+    const r = await fetch('./licenses.json', { cache: 'no-store' });
+    if (!r.ok) return null;
+    const j = await r.json();
+    return j && typeof j === 'object' ? (j.emails || j) : null;
+  } catch (e) { return null; }
+}
+async function licActivate(email) {
+  const norm = String(email || '').trim().toLowerCase();
+  if (!/^\S+@\S+\.\S+$/.test(norm)) return { ok: false, reason: 'Enter a valid email address.' };
+  if (!window.crypto || !crypto.subtle) return { ok: false, reason: 'Activation needs a secure (https) connection.' };
+  const reg = await licRegistry();
+  if (!reg) return { ok: false, reason: 'Could not reach the license server. Check your connection and try again.' };
+  const rec = reg[await licHash(norm)];
+  if (!rec) return { ok: false, reason: 'No license found for this email. Contact ' + LIC_CONTACT + ' to get set up.' };
+  const lic = { email: norm, kind: rec.kind, start: rec.start, activatedAt: new Date().toISOString() };
+  if (licState(lic).status === 'expired') return { ok: false, reason: 'This 30-day trial has ended. Contact ' + LIC_CONTACT + ' to continue with a full license.' };
+  licSave(lic);
+  return { ok: true, lic };
+}
+async function licRevalidate() {
+  const l = licLoad();
+  if (!l || !navigator.onLine || !window.crypto || !crypto.subtle) return;
+  const reg = await licRegistry();
+  if (!reg) return;
+  const rec = reg[await licHash(l.email)];
+  if (!rec) { licSave(null); }
+  else { licSave({ email: l.email, kind: rec.kind, start: rec.start, activatedAt: l.activatedAt }); }
+  showGateIfNeeded();
+  if (typeof paintFooter === 'function') paintFooter();
+}
+function showGateIfNeeded() {
+  const st = licState(licLoad());
+  let g = document.getElementById('licGate');
+  if (st.status === 'full' || st.status === 'trial') { if (g) g.remove(); return false; }
+  if (!g) { g = document.createElement('div'); g.id = 'licGate'; document.body.appendChild(g); }
+  const expired = st.status === 'expired';
+  g.innerHTML =
+    '<div class="lic-card">' +
+      '<div class="lic-logo">\ud83c\udf31</div>' +
+      '<h1>ARIS Field</h1>' +
+      '<div class="lic-tag">Agriculture Research Intelligence System</div>' +
+      '<div class="lic-notice">' +
+        (expired
+          ? 'The 30-day trial for <b>' + st.lic.email + '</b> has ended \u2014 your data is safe on this phone and will be right here when you continue. '
+          : 'ARIS Field is licensed software. ') +
+        'To purchase a license or arrange access, email <a href="mailto:' + LIC_CONTACT + '?subject=ARIS%20license">' + LIC_CONTACT + '</a> or visit <a href="https://aristrials.com" target="_blank" rel="noreferrer">aristrials.com</a>.' +
+      '</div>' +
+      '<input type="email" id="licEmail" placeholder="Licensed email" autocomplete="email" />' +
+      '<button class="btn" id="licGo">Activate</button>' +
+      '<div class="lic-msg" id="licMsg"></div>' +
+      '<div class="lic-foot">Activation checks your email against your license \u2014 an internet connection is needed once.</div>' +
+    '</div>';
+  const input = g.querySelector('#licEmail');
+  const btn = g.querySelector('#licGo');
+  const msg = g.querySelector('#licMsg');
+  async function go() {
+    btn.disabled = true; btn.textContent = 'Checking\u2026'; msg.textContent = ''; msg.className = 'lic-msg';
+    const res = await licActivate(input.value);
+    btn.disabled = false; btn.textContent = 'Activate';
+    if (res.ok) {
+      const s2 = licState(res.lic);
+      msg.className = 'lic-msg ok';
+      msg.textContent = s2.status === 'trial' ? 'Trial active \u2014 ' + s2.daysLeft + ' days remaining.' : 'License activated.';
+      setTimeout(() => { showGateIfNeeded(); if (typeof paintFooter === 'function') paintFooter(); }, 600);
+    } else {
+      msg.className = 'lic-msg err';
+      msg.textContent = res.reason;
+    }
+  }
+  btn.onclick = go;
+  input.onkeydown = (e) => { if (e.key === 'Enter') go(); };
+  return true;
 }
 
 /* ── Sunlight mode ──
@@ -1099,29 +1214,9 @@ async function paintFooter() {
   foot.innerHTML = '<span class="dot ' + (navigator.onLine ? 'on' : 'off') + '"></span>' +
     (navigator.onLine ? 'Online' : 'Offline — everything still works') +
     ' · v' + APP_VERSION +
-    ' · storage ' + (persisted ? 'protected' : 'best-effort');
+    ' · storage ' + (persisted ? 'protected' : 'best-effort') +
+    (function () { const st = licState(licLoad()); return st.status === 'trial' ? ' · Trial: ' + st.daysLeft + 'd left' : ''; })();
 }
-let footTaps = 0;
-let footDebug = false;
-foot.addEventListener('click', () => {
-  footTaps++;
-  setTimeout(() => { footTaps = 0; }, 900);
-  if (footTaps >= 3) {
-    footTaps = 0;
-    footDebug = !footDebug;
-    if (footDebug) {
-      const vv = window.visualViewport;
-      const bar = document.getElementById('tabs')?.getBoundingClientRect();
-      const sab = getComputedStyle(document.documentElement).getPropertyValue('--appH');
-      foot.textContent =
-        `DEBUG inner=${window.innerHeight} vv=${vv ? Math.round(vv.height) + '+' + Math.round(vv.offsetTop) : 'n/a'} ` +
-        `screen=${screen.height} appH=${sab || '?'} barBottom=${bar ? Math.round(bar.bottom) : '?'} ` +
-        `standalone=${window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true}`;
-    } else {
-      paintFooter();
-    }
-  }
-});
 window.addEventListener('online', paintFooter);
 window.addEventListener('offline', paintFooter);
 paintFooter();
@@ -1133,6 +1228,11 @@ async function requestPersistence() {
   paintFooter();
 }
 requestPersistence();
+
+/* Licensing boot: block the app until an activated license or running trial is cached,
+   then refresh it against the registry (upgrades apply, revoked emails drop). */
+showGateIfNeeded();
+licRevalidate();
 
 /* Install hint when running in a plain browser tab (not from the Home Screen). */
 (function installHint() {
