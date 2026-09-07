@@ -237,7 +237,7 @@
    either one bundle file (data + photos + voice memos) that desktop ARIS imports
    directly, or plain CSVs. */
 
-const APP_VERSION = '2.5.2';
+const APP_VERSION = '2.5.3';
 const LS = 'arisField.v1';
 const S = load();
 function load() {
@@ -411,6 +411,15 @@ function needsExport(t) {
 const uid = (p) => (p || 'id') + '-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 const cur = () => S.trials.find(t => t.id === S.currentId) || null;
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+// One cell entry: a number, or a list of subsample measurements ("12, 15, 9" / space / semicolon)
+// whose MEAN is stored — the same rule as the desktop's parseCellEntry. Anything else = no value.
+const parseEntry = (raw) => {
+  const parts = String(raw ?? '').trim().split(/[\s,;]+/).filter(Boolean);
+  if (!parts.length) return null;
+  const nums = parts.map(Number);
+  if (nums.some((n) => !isFinite(n))) return null;
+  return nums.reduce((a, b) => a + b, 0) / nums.length;
+};
 const csvCell = (v) => { const s = String(v ?? ''); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
 const fmtTs = (iso) => iso.slice(0, 16).replace('T', ' ');
 
@@ -728,8 +737,8 @@ function renderEntry(t) {
   vals.oninput = (e) => {
     const i = e.target.dataset.i; if (i == null) return;
     const raw = e.target.value.trim();
-    if (raw === '') delete p.vals[i];
-    else { const n = Number(raw); if (isFinite(n)) p.vals[i] = n; }
+    const n = parseEntry(raw);
+    if (n == null) delete p.vals[i]; else p.vals[i] = n;
     save();
   };
   main.querySelector('#prev').onclick = () => { plotIdx--; render(); };
@@ -791,8 +800,8 @@ function renderEntryGrid(t) {
       const p = t.plots[Number(el.dataset.p)];
       const ci = el.dataset.c;
       const raw = el.value.trim();
-      if (raw === '') delete p.vals[ci];
-      else { const n = Number(raw); if (isFinite(n)) p.vals[ci] = n; }
+      const n = parseEntry(raw);
+      if (n == null) delete p.vals[ci]; else p.vals[ci] = n;
       save();
     }
   });
