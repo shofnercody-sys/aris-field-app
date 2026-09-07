@@ -237,7 +237,7 @@
    either one bundle file (data + photos + voice memos) that desktop ARIS imports
    directly, or plain CSVs. */
 
-const APP_VERSION = '2.5.3';
+const APP_VERSION = '2.5.4';
 const LS = 'arisField.v1';
 const S = load();
 function load() {
@@ -252,7 +252,7 @@ function load() {
    the public registry only as SHA-256 hashes. An activated license is cached here and
    works offline; a revoked email drops on the next online launch. */
 const LIC_KEY = 'arisField.license';
-const LIC_CONTACT = 'info@aristrials.com';
+const LIC_CONTACT = 'cody@aristrials.com';
 const LIC_TRIAL_DAYS = 30;
 function licLoad() { try { return JSON.parse(localStorage.getItem(LIC_KEY)); } catch (e) { return null; } }
 function licSave(l) { if (l) localStorage.setItem(LIC_KEY, JSON.stringify(l)); else localStorage.removeItem(LIC_KEY); }
