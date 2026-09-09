@@ -60,7 +60,10 @@
   #licGate .lic-alts { display: flex; gap: 10px; }
   #licGate .lic-alt { flex: 1; padding: 11px 6px; border: 1px solid var(--line); border-radius: 9px;
     background: #fff; color: var(--ink); font-size: 13.5px; font-weight: 600; text-decoration: none; }
-  #licGate .lic-tiers-hdr { text-align: left; margin: 20px 0 8px; font-size: 11px; font-weight: 700;
+  #licGate .lic-tabs{display:flex;gap:6px;margin:0 0 12px;padding:4px;border-radius:12px;background:rgba(255,255,255,.08)}
+.lic-tab{flex:1;padding:9px 8px;border:0;border-radius:9px;background:transparent;color:inherit;opacity:.75;font-weight:600;font-size:13px}
+.lic-tab.on{background:#fff;color:#0a0a0a;opacity:1}
+.lic-tiers-hdr { text-align: left; margin: 20px 0 8px; font-size: 11px; font-weight: 700;
     letter-spacing: .8px; color: var(--muted); }
   #licGate .lic-tiers { border: 1px solid var(--line); border-radius: 9px; overflow: hidden; }
   #licGate .lic-tier { display: flex; justify-content: space-between; align-items: baseline;
@@ -237,7 +240,7 @@
    either one bundle file (data + photos + voice memos) that desktop ARIS imports
    directly, or plain CSVs. */
 
-const APP_VERSION = '2.5.4';
+const APP_VERSION = '2.6.0';
 const LS = 'arisField.v1';
 const S = load();
 function load() {
@@ -309,12 +312,82 @@ async function licRevalidate() {
   if (!rec) { licSave(null); }
   else { licSave(Object.assign({}, l, { hash: hash, kind: rec.kind, start: rec.start || l.start })); }
   showGateIfNeeded();
+acctRevalidate();
   if (typeof paintFooter === 'function') paintFooter();
 }
+/* ── ARIS account access (portal) ─────────────────────────────────────────
+   The desktop app signs in with email + password; the phone uses the short FIELD ACCESS
+   CODE shown on the account page (aris-portal). The portal owns the 30-day trial clock and
+   can extend it (codes) or cut it off; the phone caches the last answer and keeps working
+   offline until the cached trial end. License keys (above) remain a parallel path. */
+const PORTAL_URL = 'https://aris-portal.vercel.app';
+const ACCT_KEY = 'arisField.account';
+function acctLoad() { try { return JSON.parse(localStorage.getItem(ACCT_KEY)); } catch (e) { return null; } }
+function acctSave(a) { if (a) localStorage.setItem(ACCT_KEY, JSON.stringify(a)); else localStorage.removeItem(ACCT_KEY); }
+function acctDaysLeft(endsAt) { return Math.max(0, Math.ceil((Date.parse(endsAt) - Date.now()) / 86400000)); }
+function acctState(a) {
+  if (!a) return { status: 'none' };
+  if (a.status === 'active') {
+    const age = (Date.now() - Date.parse(a.checkedAt || 0)) / 86400000;
+    return age > 30 ? { status: 'recheck', acct: a } : { status: 'active', acct: a };
+  }
+  if (a.status === 'trial') { const d = acctDaysLeft(a.trialEndsAt); return d > 0 ? { status: 'trial', acct: a, daysLeft: d } : { status: 'expired', acct: a }; }
+  return { status: 'expired', acct: a };
+}
+async function portalGet(path) {
+  try {
+    const r = await fetch(PORTAL_URL + path, { headers: { Accept: 'application/json' }, cache: 'no-store' });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok || j.ok === false) return { ok: false, error: j.error || ('HTTP ' + r.status) };
+    return j;
+  } catch (e) { return { ok: false, error: 'offline' }; }
+}
+async function portalPost(path, body) {
+  try {
+    const r = await fetch(PORTAL_URL + path, { method: 'POST', headers: { Accept: 'application/json', 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok || j.ok === false) return { ok: false, error: j.error || ('HTTP ' + r.status) };
+    return j;
+  } catch (e) { return { ok: false, error: 'offline' }; }
+}
+function acctFromStatus(code, j, prev) {
+  return { code: code || (prev && prev.code), status: j.status, plan: j.plan, trialEndsAt: j.trialEndsAt, name: j.name, email: j.email, org: j.org, checkedAt: j.checkedAt || new Date().toISOString() };
+}
+async function acctActivate(rawCode) {
+  const code = licNorm(rawCode);
+  if (code.length < 8) return { ok: false, reason: 'Enter the access code from your ARIS account page (ARIS-XXXX-XXXX).' };
+  const j = await portalGet('/api/app/status?app=field&code=' + encodeURIComponent(code));
+  if (!j.ok) return { ok: false, reason: j.error === 'offline' ? 'Could not reach ARIS. Check your connection and try again.' : j.error };
+  const a = acctFromStatus(code, j, null);
+  acctSave(a);
+  const st = acctState(a);
+  if (st.status === 'expired') return { ok: false, reason: 'The 30-day trial for ' + (a.email || 'this account') + ' has ended. Enter an extension code below or choose a plan at ' + PORTAL_URL.replace('https://', '') + '.', expired: true };
+  return { ok: true, acct: a };
+}
+async function acctRevalidate() {
+  const a = acctLoad();
+  if (!a || !navigator.onLine) return;
+  const j = await portalGet('/api/app/status?app=field&code=' + encodeURIComponent(a.code || ''));
+  if (!j.ok) { if (j.error !== 'offline') acctSave(null); return; }
+  acctSave(acctFromStatus(a.code, j, a));
+  showGateIfNeeded();
+  if (typeof paintFooter === 'function') paintFooter();
+}
+async function acctRedeem(rawExt) {
+  const a = acctLoad();
+  if (!a) return { ok: false, reason: 'Enter your access code first.' };
+  const j = await portalPost('/api/app/redeem', { code: rawExt, fieldCode: a.code });
+  if (!j.ok) return { ok: false, reason: j.error === 'offline' ? 'Could not reach ARIS. Check your connection.' : j.error };
+  acctSave(acctFromStatus(a.code, j, a));
+  return { ok: true, message: j.message };
+}
+
 function showGateIfNeeded() {
   const st = licState(licLoad());
+  const ast = acctState(acctLoad());
   let g = document.getElementById('licGate');
-  if (st.status === 'full' || st.status === 'trial') { if (g) g.remove(); return false; }
+  if (st.status === 'full' || st.status === 'trial' || ast.status === 'full' || ast.status === 'active' || ast.status === 'trial') { if (g) g.remove(); return false; }
+  const expiredAcct = ast.status === 'expired' ? ast.acct : null;
   if (!g) { g = document.createElement('div'); g.id = 'licGate'; document.body.appendChild(g); }
   // An expired trial shows the SAME plain screen as a fresh install - a brand-new
   // researcher receiving this device must never read 'your trial expired'.
@@ -323,18 +396,35 @@ function showGateIfNeeded() {
   g.innerHTML =
     '<div class="lic-card">' +
       '<img class="lic-logo" src="./icon-512.png" alt="ARIS" />' +
-      '<h1>Activate Your License</h1>' +
-      '<div class="lic-tag">Enter the license key from your purchase confirmation email</div>' +
+      (expiredAcct
+        ? '<h1>Continue with ARIS</h1>' +
+          '<div class="lic-tag">The 30-day trial for ' + (expiredAcct.email || 'this account') + ' has ended. Enter a code from ARIS or choose a plan.</div>' +
+          '<div class="lic-label">EXTENSION OR PLAN CODE</div>' +
+          '<input type="text" id="acctExt" class="lic-key" placeholder="ARIS-XXXX-XXXX-XXXX" autocomplete="off" spellcheck="false" autocapitalize="characters" />' +
+          '<button class="btn" id="acctExtGo">Apply code</button>' +
+          '<div class="lic-msg" id="licMsg"></div>' +
+          '<div class="lic-alts"><a class="lic-alt" href="' + PORTAL_URL + '/plans" target="_blank" rel="noopener">\ud83d\udcb3 Choose a plan</a><a class="lic-alt" href="#" id="acctSwitch">Use a different code</a></div>'
+        : '<h1>Welcome to ARIS Field</h1>' +
+          '<div class="lic-tag">Enter the access code from your ARIS account page. Your 30-day trial covers ARIS desktop and ARIS Field.</div>' +
+          '<div class="lic-tabs"><button type="button" class="lic-tab on" id="tabAcct">Access code</button><button type="button" class="lic-tab" id="tabKey">License key</button></div>' +
+          '<div id="paneAcct">' +
+            '<div class="lic-label">FIELD ACCESS CODE</div>' +
+            '<input type="text" id="acctCode" class="lic-key" placeholder="ARIS-XXXX-XXXX" autocomplete="off" spellcheck="false" autocapitalize="characters" />' +
+            '<button class="btn" id="acctGo">\u2713 Continue</button>' +
+            '<div class="lic-foot" style="margin-top:8px">No account yet? Create one at <a href="' + PORTAL_URL + '/signup" target="_blank" rel="noopener">' + PORTAL_URL.replace('https://', '') + '</a> \u2014 free 30-day trial, no card.</div>' +
+          '</div>' +
+          '<div id="paneKey" style="display:none">' +
             '<div class="lic-label">LICENSE KEY</div>' +
-      '<input type="text" id="licKey" class="lic-key" placeholder="ARIS-XXXX-XXXX-XXXX-XXXX" autocomplete="off" spellcheck="false" autocapitalize="characters" />' +
-      '<input type="text" id="licName" placeholder="Your name (optional)" />' +
-      '<input type="email" id="licMail" placeholder="Your email (optional)" autocomplete="email" />' +
-      '<button class="btn" id="licGo">\u2713 Activate License</button>' +
-      '<div class="lic-msg" id="licMsg"></div>' +
-      '<div class="lic-div">DON\u2019T HAVE A LICENSE?</div>' +
+            '<input type="text" id="licKey" class="lic-key" placeholder="ARIS-XXXX-XXXX-XXXX-XXXX" autocomplete="off" spellcheck="false" autocapitalize="characters" />' +
+            '<input type="text" id="licName" placeholder="Your name (optional)" />' +
+            '<input type="email" id="licMail" placeholder="Your email (optional)" autocomplete="email" />' +
+            '<button class="btn" id="licGo">\u2713 Activate License</button>' +
+          '</div>' +
+          '<div class="lic-msg" id="licMsg"></div>') +
+      '<div class="lic-div">PLANS</div>' +
       '<div class="lic-alts">' +
-        '<a class="lic-alt" href="' + mailtoTrial + '">\ud83c\udf9f Start 30-Day Trial</a>' +
-        '<a class="lic-alt" href="' + mailtoBuy + '">\ud83d\udcb3 Buy License</a>' +
+        '<a class="lic-alt" href="' + PORTAL_URL + '/signup" target="_blank" rel="noopener">\ud83c\udf9f Start 30-Day Trial</a>' +
+        '<a class="lic-alt" href="' + PORTAL_URL + '/plans" target="_blank" rel="noopener">\ud83d\udcb3 Buy License</a>' +
       '</div>' +
       '<div class="lic-tiers-hdr">AVAILABLE TIERS</div>' +
       '<div class="lic-tiers">' +
@@ -345,9 +435,44 @@ function showGateIfNeeded() {
       '</div>' +
       '<div class="lic-foot">Yearly billing includes 2 months free. Keys are issued by email from ' + LIC_CONTACT + ' \u00b7 aristrials.com</div>' +
     '</div>';
+  const msg = g.querySelector('#licMsg');
+  const say = (ok, text) => { msg.className = 'lic-msg ' + (ok ? 'ok' : 'err'); msg.textContent = text; };
+  if (expiredAcct) {
+    const extIn = g.querySelector('#acctExt');
+    const extBtn = g.querySelector('#acctExtGo');
+    const goExt = async () => {
+      extBtn.disabled = true; extBtn.textContent = 'Checking\u2026';
+      const r = await acctRedeem(extIn.value);
+      extBtn.disabled = false; extBtn.textContent = 'Apply code';
+      if (r.ok) { say(true, r.message); setTimeout(() => { showGateIfNeeded(); if (typeof paintFooter === 'function') paintFooter(); }, 600); }
+      else say(false, r.reason);
+    };
+    extBtn.onclick = goExt;
+    extIn.onkeydown = (e) => { if (e.key === 'Enter') goExt(); };
+    g.querySelector('#acctSwitch').onclick = (e) => { e.preventDefault(); acctSave(null); showGateIfNeeded(); };
+    return true;
+  }
+  const tabAcct = g.querySelector('#tabAcct'), tabKey = g.querySelector('#tabKey');
+  const paneAcct = g.querySelector('#paneAcct'), paneKey = g.querySelector('#paneKey');
+  tabAcct.onclick = () => { tabAcct.classList.add('on'); tabKey.classList.remove('on'); paneAcct.style.display = ''; paneKey.style.display = 'none'; };
+  tabKey.onclick = () => { tabKey.classList.add('on'); tabAcct.classList.remove('on'); paneKey.style.display = ''; paneAcct.style.display = 'none'; };
+  const codeIn = g.querySelector('#acctCode');
+  const codeBtn = g.querySelector('#acctGo');
+  const goAcct = async () => {
+    codeBtn.disabled = true; codeBtn.textContent = 'Checking\u2026'; msg.textContent = ''; msg.className = 'lic-msg';
+    const r = await acctActivate(codeIn.value);
+    codeBtn.disabled = false; codeBtn.textContent = '\u2713 Continue';
+    if (r.ok) {
+      const s2 = acctState(r.acct);
+      say(true, s2.status === 'trial' ? 'Welcome' + (r.acct.name ? ', ' + r.acct.name.split(' ')[0] : '') + ' \u2014 ' + s2.daysLeft + ' trial days remaining.' : 'Signed in.');
+      setTimeout(() => { showGateIfNeeded(); if (typeof paintFooter === 'function') paintFooter(); }, 600);
+    } else if (r.expired) { say(false, r.reason); setTimeout(() => showGateIfNeeded(), 1200); }
+    else say(false, r.reason);
+  };
+  codeBtn.onclick = goAcct;
+  codeIn.onkeydown = (e) => { if (e.key === 'Enter') goAcct(); };
   const keyIn = g.querySelector('#licKey');
   const btn = g.querySelector('#licGo');
-  const msg = g.querySelector('#licMsg');
   async function go() {
     btn.disabled = true; btn.textContent = 'Checking\u2026'; msg.textContent = ''; msg.className = 'lic-msg';
     const res = await licActivate(keyIn.value, g.querySelector('#licName').value, g.querySelector('#licMail').value);
@@ -1264,7 +1389,7 @@ async function paintFooter() {
     (navigator.onLine ? 'Online' : 'Offline — everything still works') +
     ' · v' + APP_VERSION +
     ' · storage ' + (persisted ? 'protected' : 'best-effort') +
-    (function () { const st = licState(licLoad()); return st.status === 'trial' ? ' · Trial: ' + st.daysLeft + 'd left' : ''; })();
+    (function () { const st = licState(licLoad()); if (st.status === 'trial') return ' · Trial: ' + st.daysLeft + 'd left'; const a = acctState(acctLoad()); return a.status === 'trial' ? ' · Trial: ' + a.daysLeft + 'd left' : ''; })();
 }
 window.addEventListener('online', paintFooter);
 window.addEventListener('offline', paintFooter);
