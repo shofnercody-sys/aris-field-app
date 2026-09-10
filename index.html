@@ -240,7 +240,7 @@
    either one bundle file (data + photos + voice memos) that desktop ARIS imports
    directly, or plain CSVs. */
 
-const APP_VERSION = '2.6.1';
+const APP_VERSION = '2.6.2';
 const LS = 'arisField.v1';
 const S = load();
 function load() {
@@ -312,13 +312,6 @@ async function licRevalidate() {
   if (!rec) { licSave(null); }
   else { licSave(Object.assign({}, l, { hash: hash, kind: rec.kind, start: rec.start || l.start })); }
   showGateIfNeeded();
-acctRevalidate();
-// Re-check the account whenever the app comes back to the foreground or regains a connection,
-// and every 30 minutes while open — so a suspension or expiry locks the phone promptly, not
-// only at the next cold start.
-document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') acctRevalidate(); });
-window.addEventListener('online', () => acctRevalidate());
-setInterval(() => { if (document.visibilityState === 'visible') acctRevalidate(); }, 30 * 60 * 1000);
   if (typeof paintFooter === 'function') paintFooter();
 }
 /* ── ARIS account access (portal) ─────────────────────────────────────────
@@ -1412,6 +1405,13 @@ requestPersistence();
 /* Licensing boot: block the app until an activated license or running trial is cached,
    then refresh it against the registry (upgrades apply, revoked emails drop). */
 showGateIfNeeded();
+acctRevalidate();
+// Re-check the account whenever the app comes back to the foreground or regains a connection,
+// and every 30 minutes while open — so a suspension or expiry locks the phone promptly, not
+// only at the next cold start.
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') acctRevalidate(); });
+window.addEventListener('online', () => acctRevalidate());
+setInterval(() => { if (document.visibilityState === 'visible') acctRevalidate(); }, 30 * 60 * 1000);
 licRevalidate();
 
 /* Install hint when running in a plain browser tab (not from the Home Screen). */
