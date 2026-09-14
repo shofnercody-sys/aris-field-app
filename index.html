@@ -240,7 +240,7 @@
    either one bundle file (data + photos + voice memos) that desktop ARIS imports
    directly, or plain CSVs. */
 
-const APP_VERSION = '2.7.0';
+const APP_VERSION = '2.7.1';
 const LS = 'arisField.v1';
 const S = load();
 function load() {
@@ -1292,7 +1292,8 @@ function renderSave(t) {
         ? `<p class="muted">One tap sends this trial to your ARIS account${acctLoad().email ? ' (<b>' + esc(acctLoad().email) + '</b>)' : ''}. Desktop ARIS signed in to the same account picks it up by itself within a couple of minutes — or press <b>Pull from phone</b> on its Field Sync page. Encrypted on this phone; deleted from ARIS once the desktop has it.</p>
       <button class="btn" id="syncOne">☁️ Send this trial to desktop</button>
       ${S.trials.length > 1 ? `<button class="btn secondary" id="syncAll">☁️ Send ALL ${S.trials.length} trials</button>` : ''}
-      ${t.syncedAt ? `<p class="muted center" style="margin-top:8px">Last sent ${esc(fmtTs(t.syncedAt))}${needsExport(t) ? ' — changed since' : ''}.</p>` : ''}`
+      ${t.syncedAt ? `<p class="muted center" style="margin-top:8px">Last sent ${esc(fmtTs(t.syncedAt))}${needsExport(t) ? ' — changed since' : ''}.</p>` : ''}
+      <p class="muted center" style="margin-top:6px">Wrong account? <a href="#" id="syncSwitch">Use a different access code</a></p>`
         : `<p class="muted">Enter the Field access code from your ARIS account page (<b>ARIS-XXXX-XXXX</b>) and this phone can send trials straight to the desktop — no files.</p>
       <input type="text" id="syncCode" class="lic-key" placeholder="ARIS-XXXX-XXXX" autocomplete="off" spellcheck="false" autocapitalize="characters" />
       <button class="btn" id="syncCodeGo">✓ Connect account</button>`}
@@ -1388,6 +1389,14 @@ function renderSave(t) {
   if (syncOne) syncOne.onclick = (e) => runSync(e.target, [t]);
   const syncAll = main.querySelector('#syncAll');
   if (syncAll) syncAll.onclick = (e) => runSync(e.target, S.trials);
+  const syncSwitch = main.querySelector('#syncSwitch');
+  if (syncSwitch) syncSwitch.onclick = (e) => {
+    e.preventDefault();
+    // Forget the stored account (the desktop must be signed in to the SAME one); the card
+    // re-renders with the code box. A license key, if any, keeps the app unlocked.
+    acctSave(null);
+    render();
+  };
   const syncCodeGo = main.querySelector('#syncCodeGo');
   if (syncCodeGo) syncCodeGo.onclick = async () => {
     syncCodeGo.disabled = true;
