@@ -240,7 +240,7 @@
    either one bundle file (data + photos + voice memos) that desktop ARIS imports
    directly, or plain CSVs. */
 
-const APP_VERSION = '2.6.2';
+const APP_VERSION = '2.7.0';
 const LS = 'arisField.v1';
 const S = load();
 function load() {
@@ -319,7 +319,7 @@ async function licRevalidate() {
    CODE shown on the account page (aris-portal). The portal owns the 30-day trial clock and
    can extend it (codes) or cut it off; the phone caches the last answer and keeps working
    offline until the cached trial end. License keys (above) remain a parallel path. */
-const PORTAL_URL = 'https://aris-portal.vercel.app';
+const PORTAL_URL = (function () { try { return localStorage.getItem('arisField.portalUrl') || ''; } catch (e) { return ''; } })() || 'https://aris-portal.vercel.app';
 const ACCT_KEY = 'arisField.account';
 function acctLoad() { try { return JSON.parse(localStorage.getItem(ACCT_KEY)); } catch (e) { return null; } }
 function acctSave(a) { if (a) localStorage.setItem(ACCT_KEY, JSON.stringify(a)); else localStorage.removeItem(ACCT_KEY); }
@@ -704,6 +704,90 @@ async function shareFile(filename, content, mime) {
   a.href = URL.createObjectURL(new Blob([content], { type: mime }));
   a.download = filename; a.click(); URL.revokeObjectURL(a.href);
   return true;
+}
+
+/* ── Account sync: "Send to desktop" ────────────────────
+   One tap pushes a trial to the ARIS account's sync mailbox on the portal; desktop ARIS
+   (signed in to the same account) pulls it down and files it — no email, no AirDrop.
+   Every part is encrypted HERE with AES-256-GCM under a key derived (PBKDF2) from the
+   account's Field access code + email, so the server only ever holds ciphertext, and the
+   desktop deletes each upload the moment it has imported it. Big uploads (photos) are
+   split into parts under the portal's request-size limit and reassembled on the desktop. */
+const SYNC_ENVELOPE = 'aris-sync-v1';
+const SYNC_PART_LIMIT = 2600000; // chars of plaintext JSON per part (base64 + JSON must stay < 4.5 MB)
+const syncB64 = (bytes) => { let r = ''; for (let i = 0; i < bytes.length; i += 0x8000) r += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000)); return btoa(r); };
+async function syncKey(acct) {
+  if (!window.crypto || !crypto.subtle) throw new Error('This browser cannot encrypt (needs HTTPS).');
+  const te = new TextEncoder();
+  const base = await crypto.subtle.importKey('raw', te.encode(licNorm(acct.code)), 'PBKDF2', false, ['deriveKey']);
+  return crypto.subtle.deriveKey(
+    { name: 'PBKDF2', hash: 'SHA-256', salt: te.encode('aris-sync-v1:' + String(acct.email || '').trim().toLowerCase()), iterations: 200000 },
+    base, { name: 'AES-GCM', length: 256 }, false, ['encrypt']);
+}
+async function syncEncrypt(key, text) {
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, new TextEncoder().encode(text)));
+  return JSON.stringify({ enc: SYNC_ENVELOPE, iv: syncB64(iv), ct: syncB64(ct) });
+}
+/* Split one trial into parts: part 1 = values/log/notes (+ as much media as fits), the rest media only. */
+async function syncParts(t) {
+  const sec = await trialSection(t);
+  const media = [...sec.photos.map(m => ({ k: 'photos', m })), ...sec.voice.map(m => ({ k: 'voice', m }))];
+  const base = { ...sec, photos: [], voice: [] };
+  const parts = [];
+  let cur = base, size = JSON.stringify(base).length;
+  for (const item of media) {
+    const w = (item.m.dataB64 || '').length + 200;
+    if (size + w > SYNC_PART_LIMIT && (cur.photos.length || cur.voice.length || cur === base)) {
+      parts.push(cur);
+      cur = { name: sec.name, cols: [], plots: [], log: [], notes: [], photos: [], voice: [], assessments: [] };
+      size = 200;
+    }
+    cur[item.k].push(item.m); size += w;
+  }
+  parts.push(cur);
+  return parts.map(sec2 => JSON.stringify({ format: 'aris-field-bundle', version: 3, appVersion: APP_VERSION, exportedAt: new Date().toISOString(), trials: [sec2] }));
+}
+function syncDevice() {
+  const ua = navigator.userAgent || '';
+  const m = /iPad|iPhone|Android|Windows|Macintosh/.exec(ua);
+  return (m ? m[0] : 'phone') + ' · ARIS Field ' + APP_VERSION;
+}
+/* Push every trial in `trials`; `progress(text)` updates the button. Returns { ok, sent, error }. */
+async function syncPush(trials, progress) {
+  const acct = acctLoad();
+  if (!acct || !acct.code) return { ok: false, error: 'Enter your ARIS Field access code first.' };
+  if (!navigator.onLine) return { ok: false, error: 'You are offline. Save a file instead, or send when you have signal.' };
+  let key;
+  try { key = await syncKey(acct); } catch (e) { return { ok: false, error: e.message || String(e) }; }
+  let sent = 0;
+  for (const t of trials) {
+    // A retry after a half-finished upload first discards the orphaned parts on the server.
+    if (t.syncPartial && t.syncPartial.ids && t.syncPartial.ids.length) {
+      await portalPost('/api/app/sync', { code: acct.code, op: 'ack', ids: t.syncPartial.ids });
+      delete t.syncPartial; save();
+    }
+    let parts;
+    try { parts = await syncParts(t); } catch (e) { return { ok: false, sent, error: 'Could not pack "' + t.name + '": ' + (e.message || e) }; }
+    const group = uid('g');
+    const ids = [];
+    for (let i = 0; i < parts.length; i++) {
+      progress && progress('Sending ' + t.name + (parts.length > 1 ? ' (' + (i + 1) + '/' + parts.length + ')' : '') + '\u2026');
+      let payload;
+      try { payload = await syncEncrypt(key, parts[i]); } catch (e) { return { ok: false, sent, error: 'Encryption failed: ' + (e.message || e) }; }
+      const r = await portalPost('/api/app/sync', { code: acct.code, op: 'push', kind: 'field-bundle', name: t.name, device: syncDevice(), group, part: i + 1, parts: parts.length, payload });
+      if (!r.ok) {
+        t.syncPartial = { group, ids }; save();
+        return { ok: false, sent, error: r.error === 'offline' ? 'Lost the connection while sending "' + t.name + '". Try again when you have signal.' : r.error };
+      }
+      ids.push(r.id);
+    }
+    delete t.syncPartial;
+    t.syncedAt = new Date().toISOString();
+    sent++;
+  }
+  markExported(trials);
+  return { ok: true, sent };
 }
 
 /* ── app shell / routing ────────────────────────────── */
@@ -1196,11 +1280,23 @@ function renderSave(t) {
   const filled = t.plots.reduce((s, p) => s + Object.keys(p.vals).length, 0);
   const stem = t.name.replace(/[^\w.-]+/g, '_');
   main.innerHTML = `
-    ${needsExport(t) ? '<div class="note">This trial has data that is not saved to a file yet. Save a bundle below before leaving the field.</div>' : ''}
+    ${needsExport(t) ? '<div class="note">This trial has data that has not been sent to the desktop or saved to a file yet.</div>' : ''}
     <div class="card">
       <h2>Assessment date</h2>
       <p class="muted">The day this data was collected. It rides along in the bundle, and desktop ARIS stamps it into the Field Log and Calendar on import.</p>
       <label class="f"><input type="date" id="asmtDate" value="${esc(t.asmtDate || new Date().toISOString().slice(0, 10))}" /></label>
+    </div>
+    <div class="card" id="syncCard">
+      <h2>Send to the desktop (recommended)</h2>
+      ${acctLoad() && acctLoad().code
+        ? `<p class="muted">One tap sends this trial to your ARIS account${acctLoad().email ? ' (<b>' + esc(acctLoad().email) + '</b>)' : ''}. Desktop ARIS signed in to the same account picks it up by itself within a couple of minutes — or press <b>Pull from phone</b> on its Field Sync page. Encrypted on this phone; deleted from ARIS once the desktop has it.</p>
+      <button class="btn" id="syncOne">☁️ Send this trial to desktop</button>
+      ${S.trials.length > 1 ? `<button class="btn secondary" id="syncAll">☁️ Send ALL ${S.trials.length} trials</button>` : ''}
+      ${t.syncedAt ? `<p class="muted center" style="margin-top:8px">Last sent ${esc(fmtTs(t.syncedAt))}${needsExport(t) ? ' — changed since' : ''}.</p>` : ''}`
+        : `<p class="muted">Enter the Field access code from your ARIS account page (<b>ARIS-XXXX-XXXX</b>) and this phone can send trials straight to the desktop — no files.</p>
+      <input type="text" id="syncCode" class="lic-key" placeholder="ARIS-XXXX-XXXX" autocomplete="off" spellcheck="false" autocapitalize="characters" />
+      <button class="btn" id="syncCodeGo">✓ Connect account</button>`}
+      <p class="muted center" id="syncMsg" style="margin-top:8px"></p>
     </div>
     <div class="card">
       <h2>Rating the same plots again later?</h2>
@@ -1211,7 +1307,7 @@ function renderSave(t) {
     </div>
     <div class="card">
       <h2>Save everything as one file</h2>
-      <p class="muted">One .arisfield file with your entered values, field log, notes, photos and voice memos. Email or AirDrop it to the computer, then just <b>double-click the file</b> — ARIS opens and imports everything into the right trials automatically (desktop 4.7.13+). Dragging the file onto any ARIS page works too.</p>
+      <p class="muted">No signal, or no ARIS account on this phone? Save one .arisfield file with your values, field log, notes, photos and voice memos. Email or AirDrop it to the computer, then <b>double-click the file</b> — ARIS imports everything into the right trials (desktop 4.7.13+). Dragging the file onto any ARIS page works too.</p>
       <button class="btn" id="exBundle">💾 Save this trial (one file)</button>
       ${S.trials.length > 1 ? `<button class="btn secondary" id="exAll">💾 Save ALL ${S.trials.length} trials (one file)</button>` : ''}
       <p class="muted center" id="bundleInfo" style="margin-top:8px"></p>
@@ -1272,6 +1368,33 @@ function renderSave(t) {
     }
     btn.disabled = false; btn.textContent = original;
     return shared;
+  };
+  const syncMsg = main.querySelector('#syncMsg');
+  const runSync = async (btn, trials) => {
+    const original = btn.textContent;
+    btn.disabled = true;
+    syncMsg.textContent = '';
+    const r = await syncPush(trials, (txt) => { btn.textContent = txt; });
+    btn.disabled = false; btn.textContent = original;
+    if (r.ok) {
+      flash = { text: (r.sent === 1 ? '"' + trials[0].name + '" was sent' : r.sent + ' trials were sent') + ' to your ARIS account. Desktop ARIS imports it automatically (or press Pull from phone on its Field Sync page).' };
+      render();
+    } else {
+      syncMsg.textContent = (r.sent ? r.sent + ' sent, then: ' : '') + r.error;
+      syncMsg.style.color = 'var(--bad, #c0392b)';
+    }
+  };
+  const syncOne = main.querySelector('#syncOne');
+  if (syncOne) syncOne.onclick = (e) => runSync(e.target, [t]);
+  const syncAll = main.querySelector('#syncAll');
+  if (syncAll) syncAll.onclick = (e) => runSync(e.target, S.trials);
+  const syncCodeGo = main.querySelector('#syncCodeGo');
+  if (syncCodeGo) syncCodeGo.onclick = async () => {
+    syncCodeGo.disabled = true;
+    const r = await acctActivate(main.querySelector('#syncCode').value);
+    syncCodeGo.disabled = false;
+    if (r.ok) { flash = { text: 'Account connected. You can now send trials straight to the desktop.' }; render(); }
+    else { syncMsg.textContent = r.reason; syncMsg.style.color = 'var(--bad, #c0392b)'; }
   };
   main.querySelector('#exBundle').onclick = (e) => packAndShare(e.target, [t], stem + '.arisfield').then((ok) => { if (ok) { markExported([t]); render(); } });
   const allBtn = main.querySelector('#exAll');
