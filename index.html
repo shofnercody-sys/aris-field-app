@@ -124,6 +124,13 @@
   .valRow { display: flex; align-items: center; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
   .valRow .lbl { flex: 1 1 150px; font-size: 14px; min-width: 0; overflow-wrap: anywhere; }
   .valRow input { flex: 0 0 120px; width: 120px; text-align: right; font-size: 20px; padding: 12px 10px; }
+  .subGroup { margin-top: 12px; padding-top: 8px; border-top: 1px solid var(--line, #e5e7eb); }
+  .subGroup .lbl { font-size: 14px; margin-bottom: 6px; }
+  .subBoxes { display: grid; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); gap: 6px; }
+  .subBoxes input { width: 100%; box-sizing: border-box; text-align: center; font-size: 18px; padding: 10px 4px; }
+  .subMean { margin-top: 6px; font-size: 14px; text-align: right; }
+  .subMean b { font-size: 18px; }
+  .sheet input.meanIn { background: #f1f5f9; color: #475569; font-weight: 700; }
   .stepBar { display: flex; gap: 8px; margin-top: 12px; }
   .stepBar .btn { flex: 1; margin-top: 0; }
   .progress { text-align: center; margin-top: 10px; }
@@ -240,7 +247,7 @@
    either one bundle file (data + photos + voice memos) that desktop ARIS imports
    directly, or plain CSVs. */
 
-const APP_VERSION = '2.7.1';
+const APP_VERSION = '2.8.0';
 const LS = 'arisField.v1';
 const S = load();
 function load() {
@@ -636,8 +643,33 @@ function trialFromTemplate(name, text) {
   if (!plots.length) throw new Error('No valid plot rows found.');
   return { id: uid('t'), name, cols, plots, log: [], notes: [] };
 }
-function trialQuickSetup(name, colsStr, trtsStr, reps) {
-  const cols = colsStr.split(',').map(s => s.trim()).filter(Boolean);
+/* Group a trial's columns into variables: { label, subs:[colIdx…], mean: colIdx|null }.
+   "Sev #1", "Sev #2", "Sev" → one group with two subsample columns and a mean column. A plain
+   column with no "#k" siblings is a group of its own (subs = [], mean = its index). */
+function colGroups(cols) {
+  const groups = new Map();
+  const order = [];
+  cols.forEach((c, i) => {
+    const m = /^(.*?)\s*#(\d+)$/.exec(String(c).trim());
+    const label = m ? m[1].trim() : String(c).trim();
+    const key = label.toLowerCase();
+    if (!groups.has(key)) { groups.set(key, { label, subs: [], mean: null }); order.push(key); }
+    const g = groups.get(key);
+    if (m) g.subs[Number(m[2]) - 1] = i; else g.mean = i;
+  });
+  return order.map(k => { const g = groups.get(k); g.subs = g.subs.filter(i => i != null); return g; });
+}
+/* Recompute a plot's mean column from its subsample columns (blank when none entered). */
+function updateGroupMean(p, g) {
+  if (g.mean == null || !g.subs.length) return;
+  const vs = g.subs.map(i => p.vals[i]).filter(v => typeof v === 'number');
+  if (vs.length) p.vals[g.mean] = Math.round((vs.reduce((a, b) => a + b, 0) / vs.length) * 1000) / 1000;
+  else delete p.vals[g.mean];
+}
+function trialQuickSetup(name, colsStr, trtsStr, reps, subsPerPlot) {
+  let cols = colsStr.split(',').map(s => s.trim()).filter(Boolean);
+  const subN = Math.max(1, Math.min(50, Math.round(Number(subsPerPlot) || 1)));
+  if (subN > 1) cols = cols.flatMap(c => [...Array.from({ length: subN }, (_, k) => c + ' #' + (k + 1)), c]);
   const trts = trtsStr.split(',').map(s => s.trim()).filter(Boolean);
   if (!cols.length || !trts.length || !(reps > 0)) throw new Error('Please fill in variables, treatments and replications.');
   const plots = []; let n = 1;
@@ -675,6 +707,7 @@ async function trialSection(t) {
   ];
   return {
     name: t.name, cols: t.cols, plots: t.plots, log: t.log, notes: t.notes, photos, voice,
+    rater: S.rater || '',
     assessmentDate: t.asmtDate || '',
     // v3: every dated rating set. `plots`/`assessmentDate` above stay for older desktops.
     assessments,
@@ -862,10 +895,17 @@ function renderHome() {
       <label class="f">Variables to measure, separated by commas<input type="text" id="qsCols" placeholder="e.g. Disease Severity, Disease Incidence, Yield" /></label>
       <label class="f">Treatments, separated by commas<input type="text" id="qsTrts" placeholder="e.g. C, 1, 2, 3, 4" /></label>
       <label class="f">Replications<input type="text" inputmode="numeric" id="qsReps" placeholder="e.g. 4" /></label>
+      <label class="f">Subsamples per plot (plants / leaves / fruit rated in each plot; 1 = one value per plot)<input type="text" inputmode="numeric" id="qsSubs" placeholder="e.g. 1 or 5" /></label>
       <button class="btn secondary" id="qsGo">Create trial</button>
       <p class="muted" style="margin-top:8px">Plots are numbered in order (Rep 1 first). If this trial also exists on the desktop with a randomized layout, use the CSV option above instead so plot numbers line up.</p>
     </div>
+    <div class="card">
+      <h2>Rated by</h2>
+      <p class="muted">Your name goes into every value you send to the desktop, so trials rated by two people stay traceable.</p>
+      <input type="text" id="raterName" value="${esc(S.rater || '')}" placeholder="e.g. Cody S." autocomplete="name" />
+    </div>
     <p class="muted center">All data stays on this phone until you share it from the Save tab. · v${APP_VERSION}</p>`;
+  main.querySelector('#raterName').onchange = (e) => { S.rater = e.target.value.trim(); localStorage.setItem(LS, JSON.stringify(S)); };
   const list = main.querySelector('#trials');
   S.trials.forEach(t => {
     const filled = t.plots.reduce((s, p) => s + Object.keys(p.vals).length, 0);
@@ -906,7 +946,7 @@ function renderHome() {
       const t = trialQuickSetup(
         main.querySelector('#qsName').value.trim() || 'Field trial',
         main.querySelector('#qsCols').value, main.querySelector('#qsTrts').value,
-        Number(main.querySelector('#qsReps').value));
+        Number(main.querySelector('#qsReps').value), main.querySelector('#qsSubs').value);
       S.trials.push(t); S.currentId = t.id; plotIdx = 0; save(); view = 'entry';
       flash = { text: 'Created ' + t.plots.length + ' plots.' };
     } catch (err) { flash = { text: err.message, err: true }; }
@@ -936,10 +976,19 @@ function renderEntry(t) {
     </div>
     <p class="muted center">It's fine to leave a box empty when there's no data point for it.</p>`;
   const vals = main.querySelector('#vals');
-  t.cols.forEach((c, i) => {
+  const groups = colGroups(t.cols);
+  groups.forEach((g) => {
     const row = document.createElement('div');
-    row.className = 'valRow';
-    row.innerHTML = `<span class="lbl">${esc(c)}</span><input type="text" inputmode="decimal" value="${p.vals[i] ?? ''}" data-i="${i}" aria-label="${esc(c)}" />`;
+    if (!g.subs.length) {
+      row.className = 'valRow';
+      row.innerHTML = `<span class="lbl">${esc(g.label)}</span><input type="text" inputmode="decimal" value="${p.vals[g.mean] ?? ''}" data-i="${g.mean}" aria-label="${esc(g.label)}" />`;
+    } else {
+      // One box per subsample; the plot value (mean) is shown, not typed.
+      row.className = 'subGroup';
+      row.innerHTML = `<div class="lbl">${esc(g.label)} <span class="muted">· ${g.subs.length} subsamples</span></div>
+        <div class="subBoxes">${g.subs.map((ci, k) => `<input type="text" inputmode="decimal" value="${p.vals[ci] ?? ''}" data-i="${ci}" aria-label="${esc(g.label)} subsample ${k + 1}" placeholder="#${k + 1}" />`).join('')}</div>
+        <div class="subMean muted">mean <b data-mean-of="${esc(g.label)}">${g.mean != null && p.vals[g.mean] != null ? p.vals[g.mean] : '—'}</b></div>`;
+    }
     vals.appendChild(row);
   });
   vals.oninput = (e) => {
@@ -947,8 +996,22 @@ function renderEntry(t) {
     const raw = e.target.value.trim();
     const n = parseEntry(raw);
     if (n == null) delete p.vals[i]; else p.vals[i] = n;
+    const g = groups.find(x => x.subs.includes(Number(i)));
+    if (g) {
+      updateGroupMean(p, g);
+      const b = vals.querySelector('[data-mean-of="' + CSS.escape(g.label) + '"]');
+      if (b) b.textContent = g.mean != null && p.vals[g.mean] != null ? p.vals[g.mean] : '\u2014';
+    }
     save();
   };
+  // Enter / Go moves to the next box.
+  vals.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    const all = [...vals.querySelectorAll('input')];
+    const nxt = all[all.indexOf(e.target) + 1];
+    if (nxt) { nxt.focus(); nxt.select?.(); } else main.querySelector('#next')?.click();
+  });
   main.querySelector('#prev').onclick = () => { plotIdx--; render(); };
   main.querySelector('#next').onclick = () => { plotIdx++; render(); };
   main.querySelector('#jump').onchange = (e) => { plotIdx = Number(e.target.value); render(); };
@@ -972,9 +1035,10 @@ function wireModeToggle() {
 function renderEntryGrid(t) {
   const head = t.cols.map((c, i) =>
     `<th><input value="${esc(c)}" data-col="${i}" aria-label="Column name ${i + 1}" /></th>`).join('');
+  const meanCols = new Set(colGroups(t.cols).filter(g => g.subs.length && g.mean != null).map(g => g.mean));
   const rows = t.plots.map((p, pi) => {
     const cells = t.cols.map((_, ci) =>
-      `<td><input class="cellIn" type="text" inputmode="decimal" value="${p.vals[ci] ?? ''}" data-p="${pi}" data-c="${ci}" aria-label="Plot ${p.plot} ${esc(t.cols[ci])}" /></td>`).join('');
+      `<td><input class="cellIn${meanCols.has(ci) ? ' meanIn' : ''}" type="text" inputmode="decimal" value="${p.vals[ci] ?? ''}" data-p="${pi}" data-c="${ci}" aria-label="Plot ${p.plot} ${esc(t.cols[ci])}" ${meanCols.has(ci) ? 'readonly title="Mean of the subsamples"' : ''} /></td>`).join('');
     return `<tr><td class="rowHead"><b>${p.plot}</b> ${esc(p.rep)} · ${esc(p.trt)}</td>${cells}</tr>`;
   }).join('');
   const done = t.plots.reduce((s2, p) => s2 + Object.keys(p.vals).length, 0);
@@ -1010,6 +1074,12 @@ function renderEntryGrid(t) {
       const raw = el.value.trim();
       const n = parseEntry(raw);
       if (n == null) delete p.vals[ci]; else p.vals[ci] = n;
+      const g = colGroups(t.cols).find(x => x.subs.includes(Number(ci)));
+      if (g) {
+        updateGroupMean(p, g);
+        const meanEl = wrap.querySelector('input[data-p="' + el.dataset.p + '"][data-c="' + g.mean + '"]');
+        if (meanEl) meanEl.value = p.vals[g.mean] ?? '';
+      }
       save();
     }
   });
