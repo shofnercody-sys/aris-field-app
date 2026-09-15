@@ -131,6 +131,9 @@
   .subMean { margin-top: 6px; font-size: 14px; text-align: right; }
   .subMean b { font-size: 18px; }
   .sheet input.meanIn { background: #f1f5f9; color: #475569; font-weight: 700; }
+  /* Out-of-range warning (advisory, never blocking) — amber inset outline works on the
+     borderless grid cells and the bordered plot/subsample inputs alike. */
+  input.warn { background: #fffbeb; color: #b45309; box-shadow: inset 0 0 0 2px #f59e0b; border-radius: 8px; }
   .stepBar { display: flex; gap: 8px; margin-top: 12px; }
   .stepBar .btn { flex: 1; margin-top: 0; }
   .progress { text-align: center; margin-top: 10px; }
@@ -247,7 +250,7 @@
    either one bundle file (data + photos + voice memos) that desktop ARIS imports
    directly, or plain CSVs. */
 
-const APP_VERSION = '2.8.0';
+const APP_VERSION = '2.9.0';
 const LS = 'arisField.v1';
 const S = load();
 function load() {
@@ -659,6 +662,41 @@ function colGroups(cols) {
   });
   return order.map(k => { const g = groups.get(k); g.subs = g.subs.filter(i => i != null); return g; });
 }
+/* Parse a "0–100" / "1-9" / "20 – 60" valid-range string into {min,max}. En-dash, em-dash
+   or hyphen separators; blank/descriptive strings return null (so those variables are never
+   range-checked). Mirrors the desktop's parseRange. */
+function parseRange(range) {
+  if (!range) return null;
+  const m = String(range).trim().match(/^(-?\d+(?:\.\d+)?)\s*[–—-]\s*(-?\d+(?:\.\d+)?)$/);
+  if (!m) return null;
+  const min = Number(m[1]), max = Number(m[2]);
+  if (!isFinite(min) || !isFinite(max) || min > max) return null;
+  return { min, max };
+}
+/* True when a finite value is outside the variable's declared range. Advisory only — never
+   blocks entry, just flags the cell so the rater can double-check an unusual reading. */
+function outOfRange(value, range) {
+  if (typeof value !== 'number' || !isFinite(value)) return false;
+  const r = parseRange(range);
+  return r ? (value < r.min || value > r.max) : false;
+}
+/* Resolve the valid range for a variable group from the trial's optional ranges map. */
+function rangeForLabel(t, label) {
+  return t && t.ranges ? t.ranges[String(label).toLowerCase()] : undefined;
+}
+/* Map every column index (subsamples + mean) to its variable's valid range, when one is set. */
+function colRanges(t) {
+  const map = {};
+  if (!t || !t.ranges) return map;
+  colGroups(t.cols).forEach(g => {
+    const r = rangeForLabel(t, g.label);
+    if (!r) return;
+    if (g.mean != null) map[g.mean] = r;
+    g.subs.forEach(ci => { map[ci] = r; });
+  });
+  return map;
+}
+
 /* Recompute a plot's mean column from its subsample columns (blank when none entered). */
 function updateGroupMean(p, g) {
   if (g.mean == null || !g.subs.length) return;
@@ -666,15 +704,24 @@ function updateGroupMean(p, g) {
   if (vs.length) p.vals[g.mean] = Math.round((vs.reduce((a, b) => a + b, 0) / vs.length) * 1000) / 1000;
   else delete p.vals[g.mean];
 }
-function trialQuickSetup(name, colsStr, trtsStr, reps, subsPerPlot) {
-  let cols = colsStr.split(',').map(s => s.trim()).filter(Boolean);
+function trialQuickSetup(name, colsStr, trtsStr, reps, subsPerPlot, rangesStr) {
+  const baseVars = colsStr.split(',').map(s => s.trim()).filter(Boolean);
+  let cols = baseVars.slice();
   const subN = Math.max(1, Math.min(50, Math.round(Number(subsPerPlot) || 1)));
   if (subN > 1) cols = cols.flatMap(c => [...Array.from({ length: subN }, (_, k) => c + ' #' + (k + 1)), c]);
   const trts = trtsStr.split(',').map(s => s.trim()).filter(Boolean);
   if (!cols.length || !trts.length || !(reps > 0)) throw new Error('Please fill in variables, treatments and replications.');
+  // Optional valid ranges: one per variable, same order (e.g. "0-100, 0-15"). Keyed by the
+  // lowercased variable label so entry-time flagging can look them up. Blank entries skipped.
+  const ranges = {};
+  if (rangesStr && rangesStr.trim()) {
+    rangesStr.split(',').map(s => s.trim()).forEach((r, i) => {
+      if (r && baseVars[i] && parseRange(r)) ranges[baseVars[i].toLowerCase()] = r;
+    });
+  }
   const plots = []; let n = 1;
   for (let r = 1; r <= reps; r++) for (const trt of trts) plots.push({ plot: n++, rep: 'R' + r, trt, vals: {} });
-  return { id: uid('t'), name, cols, plots, log: [], notes: [] };
+  return { id: uid('t'), name, cols, plots, log: [], notes: [], ranges };
 }
 function assessmentCSV(t) {
   const rows = [['Plot','Rep','Trt', ...t.cols].map(csvCell).join(',')];
@@ -893,6 +940,7 @@ function renderHome() {
       <h2>Quick setup (no computer needed)</h2>
       <label class="f">Trial name<input type="text" id="qsName" placeholder="e.g. Watsonville T3" /></label>
       <label class="f">Variables to measure, separated by commas<input type="text" id="qsCols" placeholder="e.g. Disease Severity, Disease Incidence, Yield" /></label>
+      <label class="f">Valid range per variable (optional) — same order, e.g. 0-100, 0-100, 0-15. Values outside are flagged, not blocked.<input type="text" id="qsRanges" placeholder="e.g. 0-100, 0-100, 0-15" /></label>
       <label class="f">Treatments, separated by commas<input type="text" id="qsTrts" placeholder="e.g. C, 1, 2, 3, 4" /></label>
       <label class="f">Replications<input type="text" inputmode="numeric" id="qsReps" placeholder="e.g. 4" /></label>
       <label class="f">Subsamples per plot (plants / leaves / fruit rated in each plot; 1 = one value per plot)<input type="text" inputmode="numeric" id="qsSubs" placeholder="e.g. 1 or 5" /></label>
@@ -946,7 +994,8 @@ function renderHome() {
       const t = trialQuickSetup(
         main.querySelector('#qsName').value.trim() || 'Field trial',
         main.querySelector('#qsCols').value, main.querySelector('#qsTrts').value,
-        Number(main.querySelector('#qsReps').value), main.querySelector('#qsSubs').value);
+        Number(main.querySelector('#qsReps').value), main.querySelector('#qsSubs').value,
+        main.querySelector('#qsRanges').value);
       S.trials.push(t); S.currentId = t.id; plotIdx = 0; save(); view = 'entry';
       flash = { text: 'Created ' + t.plots.length + ' plots.' };
     } catch (err) { flash = { text: err.message, err: true }; }
@@ -977,16 +1026,20 @@ function renderEntry(t) {
     <p class="muted center">It's fine to leave a box empty when there's no data point for it.</p>`;
   const vals = main.querySelector('#vals');
   const groups = colGroups(t.cols);
+  const colR = colRanges(t);
+  // ` class="warn" title="…"` for an out-of-range value, else ''. Advisory only.
+  const warnFor = (v, ci) => outOfRange(v, colR[ci]) ? ` class="warn" title="Outside the valid range ${esc(colR[ci])}"` : '';
   groups.forEach((g) => {
     const row = document.createElement('div');
     if (!g.subs.length) {
       row.className = 'valRow';
-      row.innerHTML = `<span class="lbl">${esc(g.label)}</span><input type="text" inputmode="decimal" value="${p.vals[g.mean] ?? ''}" data-i="${g.mean}" aria-label="${esc(g.label)}" />`;
+      row.innerHTML = `<span class="lbl">${esc(g.label)}${colR[g.mean] ? ` <span class="muted">· ${esc(colR[g.mean])}</span>` : ''}</span><input type="text" inputmode="decimal"${warnFor(p.vals[g.mean], g.mean)} value="${p.vals[g.mean] ?? ''}" data-i="${g.mean}" aria-label="${esc(g.label)}" />`;
     } else {
       // One box per subsample; the plot value (mean) is shown, not typed.
       row.className = 'subGroup';
-      row.innerHTML = `<div class="lbl">${esc(g.label)} <span class="muted">· ${g.subs.length} subsamples</span></div>
-        <div class="subBoxes">${g.subs.map((ci, k) => `<input type="text" inputmode="decimal" value="${p.vals[ci] ?? ''}" data-i="${ci}" aria-label="${esc(g.label)} subsample ${k + 1}" placeholder="#${k + 1}" />`).join('')}</div>
+      const rng = rangeForLabel(t, g.label);
+      row.innerHTML = `<div class="lbl">${esc(g.label)} <span class="muted">· ${g.subs.length} subsamples${rng ? ` · range ${esc(rng)}` : ''}</span></div>
+        <div class="subBoxes">${g.subs.map((ci, k) => `<input type="text" inputmode="decimal"${warnFor(p.vals[ci], ci)} value="${p.vals[ci] ?? ''}" data-i="${ci}" aria-label="${esc(g.label)} subsample ${k + 1}" placeholder="#${k + 1}" />`).join('')}</div>
         <div class="subMean muted">mean <b data-mean-of="${esc(g.label)}">${g.mean != null && p.vals[g.mean] != null ? p.vals[g.mean] : '—'}</b></div>`;
     }
     vals.appendChild(row);
@@ -996,6 +1049,10 @@ function renderEntry(t) {
     const raw = e.target.value.trim();
     const n = parseEntry(raw);
     if (n == null) delete p.vals[i]; else p.vals[i] = n;
+    // Live out-of-range flag on the edited box.
+    const bad = outOfRange(p.vals[i], colR[Number(i)]);
+    e.target.classList.toggle('warn', bad);
+    if (bad) e.target.title = 'Outside the valid range ' + colR[Number(i)]; else e.target.removeAttribute('title');
     const g = groups.find(x => x.subs.includes(Number(i)));
     if (g) {
       updateGroupMean(p, g);
@@ -1036,9 +1093,15 @@ function renderEntryGrid(t) {
   const head = t.cols.map((c, i) =>
     `<th><input value="${esc(c)}" data-col="${i}" aria-label="Column name ${i + 1}" /></th>`).join('');
   const meanCols = new Set(colGroups(t.cols).filter(g => g.subs.length && g.mean != null).map(g => g.mean));
+  const colR = colRanges(t);
   const rows = t.plots.map((p, pi) => {
-    const cells = t.cols.map((_, ci) =>
-      `<td><input class="cellIn${meanCols.has(ci) ? ' meanIn' : ''}" type="text" inputmode="decimal" value="${p.vals[ci] ?? ''}" data-p="${pi}" data-c="${ci}" aria-label="Plot ${p.plot} ${esc(t.cols[ci])}" ${meanCols.has(ci) ? 'readonly title="Mean of the subsamples"' : ''} /></td>`).join('');
+    const cells = t.cols.map((_, ci) => {
+      const isMean = meanCols.has(ci);
+      const flagged = outOfRange(p.vals[ci], colR[ci]);
+      const cls = 'cellIn' + (isMean ? ' meanIn' : '') + (flagged ? ' warn' : '');
+      const attrs = (isMean ? 'readonly ' : '') + (flagged ? `title="Outside the valid range ${esc(colR[ci])}"` : (isMean ? 'title="Mean of the subsamples"' : ''));
+      return `<td><input class="${cls}" type="text" inputmode="decimal" value="${p.vals[ci] ?? ''}" data-p="${pi}" data-c="${ci}" aria-label="Plot ${p.plot} ${esc(t.cols[ci])}" ${attrs} /></td>`;
+    }).join('');
     return `<tr><td class="rowHead"><b>${p.plot}</b> ${esc(p.rep)} · ${esc(p.trt)}</td>${cells}</tr>`;
   }).join('');
   const done = t.plots.reduce((s2, p) => s2 + Object.keys(p.vals).length, 0);
@@ -1074,11 +1137,20 @@ function renderEntryGrid(t) {
       const raw = el.value.trim();
       const n = parseEntry(raw);
       if (n == null) delete p.vals[ci]; else p.vals[ci] = n;
+      // Live out-of-range flag on the edited cell.
+      const bad = outOfRange(p.vals[ci], colR[Number(ci)]);
+      el.classList.toggle('warn', bad);
+      if (bad) el.title = 'Outside the valid range ' + colR[Number(ci)]; else el.removeAttribute('title');
       const g = colGroups(t.cols).find(x => x.subs.includes(Number(ci)));
       if (g) {
         updateGroupMean(p, g);
         const meanEl = wrap.querySelector('input[data-p="' + el.dataset.p + '"][data-c="' + g.mean + '"]');
-        if (meanEl) meanEl.value = p.vals[g.mean] ?? '';
+        if (meanEl) {
+          meanEl.value = p.vals[g.mean] ?? '';
+          const mbad = outOfRange(p.vals[g.mean], colR[g.mean]);
+          meanEl.classList.toggle('warn', mbad);
+          if (mbad) meanEl.title = 'Outside the valid range ' + colR[g.mean]; else meanEl.title = 'Mean of the subsamples';
+        }
       }
       save();
     }
