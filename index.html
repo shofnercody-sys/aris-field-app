@@ -134,6 +134,10 @@
   /* Out-of-range warning (advisory, never blocking) — amber inset outline works on the
      borderless grid cells and the bordered plot/subsample inputs alike. */
   input.warn { background: #fffbeb; color: #b45309; box-shadow: inset 0 0 0 2px #f59e0b; border-radius: 8px; }
+  .histBox summary { cursor: pointer; font-weight: 600; }
+  .histList { list-style: none; margin: 8px 0 0; padding: 0; }
+  .histList li { padding: 6px 0; border-bottom: 1px solid var(--line); font-size: 13px; }
+  .histList li:last-child { border-bottom: none; }
   .stepBar { display: flex; gap: 8px; margin-top: 12px; }
   .stepBar .btn { flex: 1; margin-top: 0; }
   .progress { text-align: center; margin-top: 10px; }
@@ -250,7 +254,7 @@
    either one bundle file (data + photos + voice memos) that desktop ARIS imports
    directly, or plain CSVs. */
 
-const APP_VERSION = '2.9.0';
+const APP_VERSION = '2.10.0';
 const LS = 'arisField.v1';
 const S = load();
 function load() {
@@ -697,6 +701,33 @@ function colRanges(t) {
   return map;
 }
 
+/* ── Observation-history audit trail (GLP), mirroring desktop. Every change to a value is
+   captured (old→new, who, when) onto t.audit; consecutive edits to the same cell within a
+   short window coalesce into one entry, and an edit back to the original drops it. Rides along
+   in the export bundle so desktop ARIS can fold it into its own audit log. */
+let fieldAuditSession = null;
+function logFieldEdit(t, p, colIdx, from, to) {
+  const key = t.id + '|' + p.plot + '|' + colIdx;
+  const now = Date.now();
+  const s = fieldAuditSession;
+  if (s && s.key === key && now - s.ts < 30000) {
+    if (s.from === to) {
+      if (t.audit) { const i = t.audit.findIndex(e => e.id === s.id); if (i >= 0) t.audit.splice(i, 1); }
+      fieldAuditSession = null;
+    } else {
+      const e = t.audit && t.audit.find(x => x.id === s.id);
+      if (e) { e.to = to; e.at = new Date().toISOString(); }
+      s.ts = now;
+    }
+    return;
+  }
+  if (from === to) return;
+  if (!t.audit) t.audit = [];
+  const id = uid('a');
+  t.audit.push({ id, plot: p.plot, variable: t.cols[colIdx], from, to, user: S.rater || 'Unattributed', at: new Date().toISOString() });
+  fieldAuditSession = { key, from, id, ts: now };
+}
+
 /* Recompute a plot's mean column from its subsample columns (blank when none entered). */
 function updateGroupMean(p, g) {
   if (g.mean == null || !g.subs.length) return;
@@ -754,6 +785,7 @@ async function trialSection(t) {
   ];
   return {
     name: t.name, cols: t.cols, plots: t.plots, log: t.log, notes: t.notes, photos, voice,
+    audit: t.audit || [],
     rater: S.rater || '',
     assessmentDate: t.asmtDate || '',
     // v3: every dated rating set. `plots`/`assessmentDate` above stay for older desktops.
@@ -1023,7 +1055,11 @@ function renderEntry(t) {
         <select id="jump">${t.plots.map((x, i) => `<option value="${i}" ${i === plotIdx ? 'selected' : ''}>Plot ${x.plot} — ${esc(x.rep)} · Trt ${esc(x.trt)}</option>`).join('')}</select>
       </label>
     </div>
-    <p class="muted center">It's fine to leave a box empty when there's no data point for it.</p>`;
+    <p class="muted center">It's fine to leave a box empty when there's no data point for it.</p>
+    ${(t.audit && t.audit.length) ? `<details class="card histBox"><summary>Change history (${t.audit.length})</summary>
+      <ul class="histList">${[...t.audit].sort((a, b) => (b.at || '').localeCompare(a.at || '')).slice(0, 100).map(e =>
+        `<li>Plot ${e.plot} · ${esc(e.variable)}: ${e.from == null ? '(blank)' : esc(String(e.from))} → ${e.to == null ? '(blank)' : esc(String(e.to))} <span class="muted">· ${esc(e.user || '')}${e.at ? ' · ' + new Date(e.at).toLocaleString() : ''}</span></li>`).join('')}</ul>
+    </details>` : ''}`;
   const vals = main.querySelector('#vals');
   const groups = colGroups(t.cols);
   const colR = colRanges(t);
@@ -1048,7 +1084,9 @@ function renderEntry(t) {
     const i = e.target.dataset.i; if (i == null) return;
     const raw = e.target.value.trim();
     const n = parseEntry(raw);
+    const prev = p.vals[i] ?? null;
     if (n == null) delete p.vals[i]; else p.vals[i] = n;
+    logFieldEdit(t, p, Number(i), prev, n);
     // Live out-of-range flag on the edited box.
     const bad = outOfRange(p.vals[i], colR[Number(i)]);
     e.target.classList.toggle('warn', bad);
@@ -1136,7 +1174,9 @@ function renderEntryGrid(t) {
       const ci = el.dataset.c;
       const raw = el.value.trim();
       const n = parseEntry(raw);
+      const prev = p.vals[ci] ?? null;
       if (n == null) delete p.vals[ci]; else p.vals[ci] = n;
+      logFieldEdit(t, p, Number(ci), prev, n);
       // Live out-of-range flag on the edited cell.
       const bad = outOfRange(p.vals[ci], colR[Number(ci)]);
       el.classList.toggle('warn', bad);
