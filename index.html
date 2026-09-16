@@ -247,6 +247,7 @@
   #eulaPanel .eula-hdr { display: flex; align-items: center; justify-content: space-between; gap: 10px;
     padding: 14px 16px; border-bottom: 1px solid var(--line); font-weight: 700; font-size: 15px; }
   #eulaPanel .eula-hdr small { display: block; font-weight: 400; font-size: 11.5px; color: var(--muted); }
+  #eulaPanel .eula-note { padding: 8px 16px; font-size: 13.5px; line-height: 1.35; background: #fff7e0; color: #6b4d00; border-bottom: 1px solid #eadfb8; }
   #eulaPanel .eula-body { overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 14px 16px; font-size: 13px;
     line-height: 1.55; text-align: left; }
   #eulaPanel .eula-body h2 { font-size: 16px; margin: 0 0 10px; }
@@ -293,14 +294,35 @@ const APP_VERSION = '2.11.0';
    The full ARIS End User License Agreement ships inside the app (works offline). Activation via
    access code or license key is refused until the box on the gate is ticked; acceptance is
    persisted per EULA version so returning users are not asked again. */
-const EULA_VERSION = '1.0';
-const EULA_TEXT = "# ARIS End User License Agreement (EULA)\n\nVersion 1.0 — Effective September 15, 2026\n\nIMPORTANT — READ CAREFULLY. This End User License Agreement (\"Agreement\") is a legal agreement between you (an individual or a single legal entity, \"you\") and Cody Shofner, doing business as ARIS (\"ARIS\", \"we\", \"us\"), covering the ARIS desktop application, the ARIS Field mobile application, related updates, documentation, and any software or services we provide with them (together, the \"Software\").\n\nBY INSTALLING, ACTIVATING, ACCESSING, OR USING THE SOFTWARE, OR BY CLICKING \"I AGREE\", YOU ACCEPT THIS AGREEMENT. IF YOU DO NOT AGREE, DO NOT INSTALL OR USE THE SOFTWARE.\n\n## 1. License grant\n\nSubject to this Agreement and your payment of any applicable fees, ARIS grants you a limited, non-exclusive, non-transferable, non-sublicensable, revocable license to install and use the Software, in object-code form only, for your internal research and business purposes, for the number of seats and the plan (Trial, Academic, Professional, or Enterprise) associated with your account or license key.\n\n## 2. Trial licenses\n\nA trial license permits use of the Software for evaluation purposes only for the trial period stated at activation (normally 30 days). Trial periods are enforced by ARIS's license servers and may not be reset, extended, or circumvented except by ARIS. ARIS may modify or terminate trial access at any time.\n\n## 3. Restrictions\n\nExcept as expressly permitted by this Agreement or by applicable law that cannot be waived, you shall not, and shall not permit any third party to:\n\n(a) copy, modify, adapt, translate, or create derivative works of the Software;\n(b) reverse engineer, decompile, disassemble, decrypt, extract, or otherwise attempt to derive the source code, algorithms, statistical methods, data structures, file formats, protocols, or trade secrets of the Software;\n(c) circumvent, disable, remove, or interfere with any license key, account check, trial timer, encryption, integrity check, or other technical protection measure in the Software (including as prohibited by 17 U.S.C. § 1201);\n(d) rent, lease, lend, sell, sublicense, distribute, host, or otherwise make the Software available to any third party, or share license keys, access codes, or account credentials;\n(e) remove, obscure, or alter any copyright, trademark, or other proprietary notice in the Software or its output;\n(f) use the Software, or any knowledge of its design or operation, to build, train, or improve a product or service that competes with the Software;\n(g) access the Software by automated means, or scrape, harvest, or mirror any part of it or of ARIS's servers;\n(h) use the Software in violation of any law, or to process data you have no right to process.\n\n## 4. Ownership\n\nThe Software is licensed, not sold. ARIS and its licensors own and retain all right, title, and interest in and to the Software, including all copyrights, trademarks, trade secrets, patents, and other intellectual property rights, and all copies, modifications, and derivative works. The Software's design, statistical implementations, user interface, file formats, and documentation are confidential and proprietary to ARIS. All rights not expressly granted are reserved.\n\n\"ARIS\", \"ARIS Field\", and the ARIS logo are trademarks of Cody Shofner. You may not use them without prior written permission.\n\n## 5. Your data\n\nYou retain all rights to the trial designs, observations, photographs, notes, and reports you create with the Software (\"Your Data\"). You grant ARIS a limited license to store, transmit, encrypt, and process Your Data solely as needed to provide the Software's features you use (for example, account synchronization between the mobile and desktop applications). Your Data stored locally on your devices is your responsibility to back up. ARIS does not claim ownership of Your Data and does not sell it.\n\n## 6. Feedback\n\nIf you provide suggestions, bug reports, or other feedback about the Software, you grant ARIS a perpetual, irrevocable, royalty-free license to use it for any purpose without obligation to you.\n\n## 7. Accounts, keys, and verification\n\nThe Software may require an account or license key and may periodically contact ARIS's servers to verify license status, deliver updates, and synchronize data you choose to send. You are responsible for keeping credentials and keys confidential and for all activity under your account. ARIS may suspend or revoke access for breach of this Agreement or non-payment.\n\n## 8. Updates\n\nThe Software may download and install updates automatically. Updates are part of the Software and are governed by this Agreement. ARIS may add, change, or remove features at any time.\n\n## 9. Third-party software\n\nThe Software includes open-source and third-party components licensed under their own terms, which are listed in the Software's About or Legal screen. Those terms govern those components to the extent they conflict with this Agreement.\n\n## 10. No professional advice\n\nThe Software provides tools for trial design, data capture, statistical analysis, and reporting. It does not provide agronomic, regulatory, statistical, or legal advice. You are solely responsible for the design of your studies, the interpretation of results, and compliance with any applicable Good Laboratory Practice, regulatory, or sponsor requirements. Audit-trail, validation, and blinding features assist with, but do not guarantee, compliance.\n\n## 11. Disclaimer of warranties\n\nTHE SOFTWARE IS PROVIDED \"AS IS\" AND \"AS AVAILABLE\" WITHOUT WARRANTY OF ANY KIND. TO THE MAXIMUM EXTENT PERMITTED BY LAW, ARIS DISCLAIMS ALL WARRANTIES, EXPRESS OR IMPLIED, INCLUDING WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, TITLE, NON-INFRINGEMENT, ACCURACY, AND UNINTERRUPTED OR ERROR-FREE OPERATION.\n\n## 12. Limitation of liability\n\nTO THE MAXIMUM EXTENT PERMITTED BY LAW, ARIS SHALL NOT BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR PUNITIVE DAMAGES, OR FOR LOSS OF DATA, PROFITS, REVENUE, CROPS, OR BUSINESS, ARISING OUT OF OR RELATED TO THE SOFTWARE OR THIS AGREEMENT, EVEN IF ADVISED OF THE POSSIBILITY. ARIS'S TOTAL LIABILITY UNDER THIS AGREEMENT SHALL NOT EXCEED THE FEES YOU PAID TO ARIS FOR THE SOFTWARE IN THE TWELVE (12) MONTHS BEFORE THE CLAIM AROSE, OR FIFTY U.S. DOLLARS (US$50) IF YOU PAID NOTHING.\n\n## 13. Indemnity\n\nYou will defend, indemnify, and hold harmless ARIS from any claim, loss, or expense (including reasonable attorneys' fees) arising from Your Data, your use of the Software, or your breach of this Agreement.\n\n## 14. Term and termination\n\nThis Agreement is effective until terminated. It terminates automatically if you breach it. ARIS may also terminate it on notice if your plan lapses. On termination you must stop using the Software and delete all copies; sections 3 through 6 and 10 through 17 survive. You may export Your Data before termination using the Software's export features.\n\n## 15. Enforcement\n\nYou acknowledge that a breach of section 3 would cause ARIS irreparable harm for which money damages would be inadequate, and that ARIS is entitled to injunctive relief in addition to any other remedy. Unauthorized reproduction, distribution, or circumvention may also result in civil and criminal penalties under the U.S. Copyright Act, the Digital Millennium Copyright Act, and the Defend Trade Secrets Act.\n\n## 16. Governing law and venue\n\nThis Agreement is governed by the laws of the State of California, USA, without regard to conflict-of-laws rules. The state and federal courts located in San Luis Obispo County, California have exclusive jurisdiction over any dispute, and you consent to their personal jurisdiction. The United Nations Convention on Contracts for the International Sale of Goods does not apply.\n\n## 17. General\n\nThis Agreement, together with the ARIS Terms of Service and Privacy Policy (https://app.aristrials.com/terms and /privacy), is the entire agreement between you and ARIS regarding the Software. If any provision is unenforceable, the rest remains in effect. You may not assign this Agreement without ARIS's written consent. ARIS may update this Agreement by posting a new version; continued use after the effective date constitutes acceptance. Notices to ARIS: cody@aristrials.com.\n\n© 2026 Cody Shofner. All rights reserved.";
+const EULA_VERSION = '1.1';
+const EULA_TEXT = "# ARIS End User License Agreement (EULA)\n\nVersion 1.1 — Effective September 16, 2026\n\nIMPORTANT — READ CAREFULLY. This End User License Agreement (\"Agreement\") is a legal agreement between you (an individual or a single legal entity, \"you\") and Cody Shofner, doing business as ARIS (\"ARIS\", \"we\", \"us\"), covering the ARIS desktop application, the ARIS Field mobile application, related updates, documentation, file formats, and any software or services we provide with them (together, the \"Software\").\n\nBY INSTALLING, ACTIVATING, ACCESSING, OR USING THE SOFTWARE, OR BY CLICKING \"I AGREE\", YOU ACCEPT THIS AGREEMENT, INCLUDING THE ARBITRATION AGREEMENT AND CLASS ACTION WAIVER IN SECTION 19. IF YOU DO NOT AGREE, DO NOT INSTALL OR USE THE SOFTWARE. IF YOU ARE ACCEPTING ON BEHALF OF AN ORGANIZATION, YOU REPRESENT THAT YOU HAVE AUTHORITY TO BIND IT.\n\n## 1. License grant\n\nSubject to this Agreement and your payment of any applicable fees, ARIS grants you a limited, non-exclusive, non-transferable, non-sublicensable, revocable license to install and use the Software, in object-code form only, for your internal research and business purposes, for the number of seats and the plan (Trial, Academic, Professional, or Enterprise) associated with your account or license key. A \"seat\" is one named individual; seats may not be shared or pooled.\n\n## 2. Trial licenses\n\nA trial license permits use of the Software for evaluation purposes only for the trial period stated at activation (normally 30 days). Trial periods are enforced by ARIS's license servers and may not be reset, extended, or circumvented except by ARIS, including by creating additional accounts, altering system clocks, or reinstalling. ARIS may modify or terminate trial access at any time.\n\n## 3. Restrictions\n\nExcept as expressly permitted by this Agreement or by applicable law that cannot be waived, you shall not, and shall not permit or assist any third party to:\n\n(a) copy, modify, adapt, translate, or create derivative works of the Software or any part of it;\n(b) reverse engineer, decompile, disassemble, decrypt, unpack, extract, or otherwise attempt to derive the source code, algorithms, statistical methods, data structures, database schemas, protocols, or trade secrets of the Software;\n(c) reverse engineer, document, or re-implement the Software's file formats (including `.arisfield`, `.aristrial`, sync bundles, and the encrypted local store) or its communication with ARIS's servers;\n(d) circumvent, disable, remove, or interfere with any license key, account check, trial timer, encryption, integrity check, watermark, or other technical protection measure in the Software (including as prohibited by 17 U.S.C. § 1201);\n(e) rent, lease, lend, sell, sublicense, distribute, host, time-share, or otherwise make the Software available to any third party, or share license keys, access codes, or account credentials;\n(f) remove, obscure, or alter any copyright, trademark, watermark, licensee identification, or other proprietary notice in the Software or in reports, exports, or other output it generates;\n(g) use the Software, or any knowledge of its design, operation, user interface, or workflows, to design, build, train, market, or improve a product or service that competes with the Software;\n(h) use the Software, its documentation, or its output to train, fine-tune, evaluate, or improve any machine-learning or artificial-intelligence model, or submit any part of the Software to such a model for analysis;\n(i) publish or disclose benchmarks, performance comparisons, screenshots, or screen recordings of the Software to third parties without ARIS's prior written consent, other than in your own ordinary research reports that contain your data;\n(j) access the Software by automated means, or scrape, harvest, crawl, or mirror any part of it or of ARIS's servers;\n(k) use the Software in violation of any law, export control, or sanction, or to process data you have no right to process.\n\n## 4. Competitor exclusion\n\nThe Software may not be installed, accessed, or evaluated by or on behalf of any person or entity that develops, markets, or sells software for agricultural or scientific trial management, data collection, or statistical analysis, or by their employees, contractors, or agents, without ARIS's prior written consent. Any such access is unauthorized and a material breach.\n\n## 5. Ownership and trade secrets\n\nThe Software is licensed, not sold. ARIS and its licensors own and retain all right, title, and interest in and to the Software, including all copyrights, trademarks, trade secrets, patents, trade dress, and other intellectual property rights, and all copies, modifications, and derivative works. The Software's design, statistical implementations, user interface, workflows, file formats, protocols, and documentation constitute confidential information and trade secrets of ARIS under the Defend Trade Secrets Act and the California Uniform Trade Secrets Act. All rights not expressly granted are reserved.\n\n\"ARIS\", \"ARIS Field\", \"Agriculture Research Intelligence System\", and the ARIS logo are trademarks of Cody Shofner. You may not use them, or any confusingly similar mark, without prior written permission.\n\n## 6. Confidentiality\n\nYou will hold the Software, its non-public features, documentation, pricing, and any pre-release or pilot functionality in confidence, protect them with at least the care you use for your own confidential information (and no less than reasonable care), and not disclose them to any third party except employees or contractors who need access to use the Software on your behalf and who are bound by written obligations at least as protective as this Agreement. This section does not restrict disclosure of your own research results generated with the Software.\n\n## 7. Your data\n\nYou retain all rights to the trial designs, observations, photographs, notes, and reports you create with the Software (\"Your Data\"). You grant ARIS a limited license to store, transmit, encrypt, and process Your Data solely as needed to provide the Software's features you use (for example, account synchronization between the mobile and desktop applications). Your Data stored locally on your devices is your responsibility to back up. ARIS does not claim ownership of Your Data and does not sell it.\n\n## 8. Feedback\n\nIf you provide suggestions, bug reports, feature requests, or other feedback about the Software, you assign to ARIS all rights in that feedback, and to the extent assignment is not effective, you grant ARIS a perpetual, irrevocable, worldwide, royalty-free, sublicensable license to use it for any purpose without obligation or attribution to you.\n\n## 9. Accounts, keys, verification, and watermarking\n\nThe Software may require an account or license key and may periodically contact ARIS's servers to verify license status, record acceptance of this Agreement, deliver updates, and synchronize data you choose to send. You consent to that communication and to ARIS logging the app version, device type, approximate time, and IP address of such contacts. Reports and exports generated by the Software may carry a visible or invisible identification of the licensed account. You are responsible for keeping credentials and keys confidential and for all activity under your account. ARIS may suspend or revoke access for breach of this Agreement or non-payment.\n\n## 10. Compliance verification\n\nOn ARIS's reasonable written request, no more than once per year, you will certify in writing the number of seats in use and, for Enterprise customers, permit ARIS or its designee to verify compliance with this Agreement in a manner that does not unreasonably interfere with your operations. If verification reveals unlicensed use, you will promptly pay the applicable fees at ARIS's then-current list price plus the reasonable cost of verification.\n\n## 11. Updates\n\nThe Software may download and install updates automatically. Updates are part of the Software and are governed by this Agreement. ARIS may add, change, or remove features at any time.\n\n## 12. Third-party software\n\nThe Software includes open-source and third-party components licensed under their own terms, which are listed in the Software's About or Legal screen. Those terms govern those components to the extent they conflict with this Agreement.\n\n## 13. No professional advice\n\nThe Software provides tools for trial design, data capture, statistical analysis, and reporting. It does not provide agronomic, regulatory, statistical, or legal advice. You are solely responsible for the design of your studies, the interpretation of results, and compliance with any applicable Good Laboratory Practice, regulatory, or sponsor requirements. Audit-trail, validation, and blinding features assist with, but do not guarantee, compliance.\n\n## 14. Disclaimer of warranties\n\nTHE SOFTWARE IS PROVIDED \"AS IS\" AND \"AS AVAILABLE\" WITHOUT WARRANTY OF ANY KIND. TO THE MAXIMUM EXTENT PERMITTED BY LAW, ARIS DISCLAIMS ALL WARRANTIES, EXPRESS OR IMPLIED, INCLUDING WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, TITLE, NON-INFRINGEMENT, ACCURACY, AND UNINTERRUPTED OR ERROR-FREE OPERATION.\n\n## 15. Limitation of liability\n\nTO THE MAXIMUM EXTENT PERMITTED BY LAW, ARIS SHALL NOT BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR PUNITIVE DAMAGES, OR FOR LOSS OF DATA, PROFITS, REVENUE, CROPS, OR BUSINESS, ARISING OUT OF OR RELATED TO THE SOFTWARE OR THIS AGREEMENT, EVEN IF ADVISED OF THE POSSIBILITY. ARIS'S TOTAL LIABILITY UNDER THIS AGREEMENT SHALL NOT EXCEED THE FEES YOU PAID TO ARIS FOR THE SOFTWARE IN THE TWELVE (12) MONTHS BEFORE THE CLAIM AROSE, OR FIFTY U.S. DOLLARS (US$50) IF YOU PAID NOTHING.\n\n## 16. Indemnity\n\nYou will defend, indemnify, and hold harmless ARIS and its owner from any claim, loss, or expense (including reasonable attorneys' fees) arising from Your Data, your use of the Software, or your breach of this Agreement.\n\n## 17. Term and termination\n\nThis Agreement is effective until terminated. It terminates automatically if you breach it. ARIS may also terminate it on notice if your plan lapses. On termination you must stop using the Software, delete all copies, and on request certify deletion in writing; sections 3 through 8 and 13 through 21 survive. You may export Your Data before termination using the Software's export features.\n\n## 18. Enforcement and remedies\n\nYou acknowledge that a breach of sections 3 through 6 would cause ARIS irreparable harm for which money damages would be inadequate, and that ARIS is entitled to injunctive relief in any court of competent jurisdiction, without posting bond, in addition to any other remedy. In any action to enforce this Agreement the prevailing party is entitled to recover its reasonable attorneys' fees and costs. Unauthorized reproduction, distribution, or circumvention may also result in civil and criminal penalties under the U.S. Copyright Act, the Digital Millennium Copyright Act, the Defend Trade Secrets Act, and the Computer Fraud and Abuse Act.\n\n## 19. Dispute resolution, arbitration, and class action waiver\n\nPlease read this section carefully. Except for (i) ARIS's right to seek injunctive or equitable relief under section 18, and (ii) claims that qualify for small-claims court, any dispute arising out of or relating to this Agreement or the Software will be resolved by binding individual arbitration administered by JAMS under its Streamlined Arbitration Rules, seated in San Luis Obispo County, California, before a single arbitrator, with each party bearing its own costs except as the arbitrator awards under section 18. YOU AND ARIS EACH WAIVE THE RIGHT TO A JURY TRIAL AND TO PARTICIPATE IN A CLASS, COLLECTIVE, OR REPRESENTATIVE ACTION. You may opt out of this arbitration agreement by emailing cody@aristrials.com with the subject \"Arbitration opt-out\" within 30 days after first accepting this Agreement. If this section is found unenforceable as to a dispute, section 20 governs venue for that dispute.\n\n## 20. Governing law and venue\n\nThis Agreement is governed by the laws of the State of California, USA, and applicable U.S. federal law, without regard to conflict-of-laws rules. Subject to section 19, the state and federal courts located in San Luis Obispo County, California have exclusive jurisdiction over any dispute, and you consent to their personal jurisdiction. The United Nations Convention on Contracts for the International Sale of Goods does not apply.\n\n## 21. Export and government use\n\nYou will comply with U.S. export control and sanctions laws and will not export or use the Software in any embargoed country or for any prohibited end use. The Software is \"commercial computer software\" and, if acquired by or for a U.S. government agency, is licensed only with the rights set out in this Agreement.\n\n## 22. General\n\nThis Agreement, together with the ARIS Terms of Service and Privacy Policy (https://app.aristrials.com/terms and /privacy) and any signed pilot or enterprise agreement, is the entire agreement between you and ARIS regarding the Software and supersedes any prior understanding. A signed agreement controls over this Agreement in case of conflict. If any provision is unenforceable, it will be modified to the minimum extent necessary and the rest remains in effect. No waiver is effective unless in writing. You may not assign this Agreement without ARIS's written consent; ARIS may assign it to a successor. ARIS may update this Agreement by posting a new version with a new effective date; continued use after the effective date constitutes acceptance, and the Software may ask you to re-accept. Notices to ARIS: cody@aristrials.com.\n\n© 2026 Cody Shofner. All rights reserved.";
 const EULA_KEY = 'arisField.eula';
 function eulaAccepted() {
   try { const j = JSON.parse(localStorage.getItem(EULA_KEY)); return !!(j && j.version === EULA_VERSION && j.acceptedAt); } catch (e) { return false; }
 }
 function eulaSaveAcceptance() {
   try { localStorage.setItem(EULA_KEY, JSON.stringify({ version: EULA_VERSION, acceptedAt: new Date().toISOString() })); } catch (e) {}
+  eulaReportAcceptance();
+}
+/* EULA §9: record the acceptance on the portal, authenticated like /api/app/status (the
+   account's Field access code). Fire-and-forget: offline or a portal error is normal and the
+   report is retried on the next successful account check; the license-key path has no
+   account code, so nothing is sent for it. */
+function eulaReportAcceptance() {
+  try {
+    const j = JSON.parse(localStorage.getItem(EULA_KEY));
+    if (!j || j.version !== EULA_VERSION || !j.acceptedAt || j.reportedAt) return;
+    const a = typeof acctLoad === 'function' ? acctLoad() : null;
+    const code = a && a.code;
+    if (!code || !navigator.onLine) return;
+    portalPost('/api/app/accept?app=field&code=' + encodeURIComponent(code),
+      { code, eula_version: EULA_VERSION, app: 'field', app_version: APP_VERSION })
+      .then((r) => {
+        if (!r || !r.ok) return;
+        try { localStorage.setItem(EULA_KEY, JSON.stringify(Object.assign({}, j, { reportedAt: new Date().toISOString() }))); } catch (e) {}
+      })
+      .catch(() => {});
+  } catch (e) {}
 }
 function eulaHtml() {
   const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -312,23 +334,34 @@ function eulaHtml() {
   }).join('');
 }
 /* In-app scrollable EULA / Legal panel (also opened from the footer "Legal" link). */
-function openEulaPanel() {
+function openEulaPanel(opts) {
+  const reaccept = !!(opts && opts.reaccept);
   let p = document.getElementById('eulaPanel');
   if (p) { p.remove(); }
   p = document.createElement('div'); p.id = 'eulaPanel';
+  if (reaccept) p.dataset.reaccept = '1';
   p.innerHTML =
     '<div class="eula-card" role="dialog" aria-modal="true" aria-label="ARIS End User License Agreement">' +
       '<div class="eula-hdr"><div>ARIS End User License Agreement<small>Version ' + EULA_VERSION + ' \u00b7 \u00a9 2026 Cody Shofner \u00b7 ARIS Field\u2122</small></div></div>' +
+      (reaccept ? '<div class="eula-note">The license agreement has been updated (version ' + EULA_VERSION + '). Please review it and tap I Agree to keep using ARIS Field.</div>' : '') +
       '<div class="eula-body">' + eulaHtml() + '</div>' +
       '<div class="eula-foot"><div class="links">' +
         '<a href="https://app.aristrials.com/terms" target="_blank" rel="noopener">Terms of Service</a>' +
         '<a href="https://app.aristrials.com/privacy" target="_blank" rel="noopener">Privacy Policy</a>' +
-      '</div><button type="button" id="eulaClose">Close</button></div>' +
+      '</div><button type="button" id="eulaClose">' + (reaccept ? 'I Agree' : 'Close') + '</button></div>' +
     '</div>';
   document.body.appendChild(p);
-  const close = () => p.remove();
+  const close = () => { if (reaccept) eulaSaveAcceptance(); p.remove(); };
   p.querySelector('#eulaClose').onclick = close;
-  p.onclick = (e) => { if (e.target === p) close(); };
+  if (!reaccept) p.onclick = (e) => { if (e.target === p) close(); };
+}
+/* A phone that was activated under an earlier EULA version (or before the click-wrap existed)
+   is asked to accept the current version once; the gate itself handles first activations. */
+function eulaReacceptIfNeeded() {
+  if (eulaAccepted()) return;
+  const p = document.getElementById('eulaPanel');
+  if (p && p.dataset.reaccept) return;
+  openEulaPanel({ reaccept: true });
 }
 const LS = 'arisField.v1';
 const S = load();
@@ -460,6 +493,7 @@ async function acctRevalidate() {
   acctSave(acctFromStatus(a.code, j, a));
   showGateIfNeeded();
   if (typeof paintFooter === 'function') paintFooter();
+  eulaReportAcceptance();
 }
 async function acctRedeem(rawExt) {
   const a = acctLoad();
@@ -470,11 +504,23 @@ async function acctRedeem(rawExt) {
   return { ok: true, message: j.message };
 }
 
+/* EULA §9 watermark: who this phone is licensed to, stamped into every bundle, sync push and
+   CSV the app produces. Account email first, then the license-key activation email/name. */
+function licenseeId() {
+  const a = acctLoad();
+  if (a && (a.email || a.name)) return String(a.email || a.name);
+  const l = licLoad();
+  if (l && (l.email || l.name)) return String(l.email || l.name);
+  return l && l.key ? 'key ' + l.key : '';
+}
+function generatorTag() { return 'ARIS Field ' + APP_VERSION; }
+function watermarkLine() { return 'Generated with ' + generatorTag() + ' \u00b7 Licensed to ' + (licenseeId() || 'unlicensed') + ' \u00b7 \u00a9 2026 Cody Shofner'; }
+
 function showGateIfNeeded() {
   const st = licState(licLoad());
   const ast = acctState(acctLoad());
   let g = document.getElementById('licGate');
-  if (st.status === 'full' || st.status === 'trial' || ast.status === 'full' || ast.status === 'active' || ast.status === 'trial') { if (g) g.remove(); return false; }
+  if (st.status === 'full' || st.status === 'trial' || ast.status === 'full' || ast.status === 'active' || ast.status === 'trial') { if (g) g.remove(); eulaReacceptIfNeeded(); return false; }
   const expiredAcct = ast.status === 'expired' ? ast.acct : null;
   if (!g) { g = document.createElement('div'); g.id = 'licGate'; document.body.appendChild(g); }
   // An expired trial shows the SAME plain screen as a fresh install - a brand-new
@@ -851,11 +897,13 @@ function assessmentCSV(t) {
 function logCSV(t) {
   const rows = ['Timestamp,Type,Activity'];
   for (const e of t.log) rows.push([e.ts, e.type, csvCell(e.text)].join(','));
+  rows.push('# ' + watermarkLine());
   return rows.join('\n');
 }
 function notesCSV(t) {
   const rows = ['Timestamp,Note'];
   for (const e of t.notes) rows.push([e.ts, csvCell(e.text)].join(','));
+  rows.push('# ' + watermarkLine());
   return rows.join('\n');
 }
 async function trialSection(t) {
@@ -887,6 +935,7 @@ async function buildBundle(trials) {
   for (const t of trials) sections.push(await trialSection(t));
   return JSON.stringify({
     format: 'aris-field-bundle', version: 3, appVersion: APP_VERSION,
+    licensee: licenseeId(), generator: generatorTag(),
     exportedAt: new Date().toISOString(), trials: sections,
   });
 }
@@ -947,7 +996,7 @@ async function syncParts(t) {
     cur[item.k].push(item.m); size += w;
   }
   parts.push(cur);
-  return parts.map(sec2 => JSON.stringify({ format: 'aris-field-bundle', version: 3, appVersion: APP_VERSION, exportedAt: new Date().toISOString(), trials: [sec2] }));
+  return parts.map(sec2 => JSON.stringify({ format: 'aris-field-bundle', version: 3, appVersion: APP_VERSION, licensee: licenseeId(), generator: generatorTag(), exportedAt: new Date().toISOString(), trials: [sec2] }));
 }
 function syncDevice() {
   const ua = navigator.userAgent || '';
@@ -976,7 +1025,7 @@ async function syncPush(trials, progress) {
       progress && progress('Sending ' + t.name + (parts.length > 1 ? ' (' + (i + 1) + '/' + parts.length + ')' : '') + '\u2026');
       let payload;
       try { payload = await syncEncrypt(key, parts[i]); } catch (e) { return { ok: false, sent, error: 'Encryption failed: ' + (e.message || e) }; }
-      const r = await portalPost('/api/app/sync', { code: acct.code, op: 'push', kind: 'field-bundle', name: t.name, device: syncDevice(), group, part: i + 1, parts: parts.length, payload });
+      const r = await portalPost('/api/app/sync', { code: acct.code, op: 'push', kind: 'field-bundle', name: t.name, device: syncDevice(), licensee: licenseeId(), generator: generatorTag(), group, part: i + 1, parts: parts.length, payload });
       if (!r.ok) {
         t.syncPartial = { group, ids }; save();
         return { ok: false, sent, error: r.error === 'offline' ? 'Lost the connection while sending "' + t.name + '". Try again when you have signal.' : r.error };
@@ -1365,7 +1414,8 @@ function renderResults(t) {
     ? `<p class="muted center">Showing the CURRENT rating day. ${t.sessions.length} earlier day${t.sessions.length === 1 ? '' : 's'} (${t.sessions.map(x => x.date).join(', ')}) are archived and will be in the bundle \u2014 desktop ARIS turns them into progress curves.</p>`
     : '';
   main.innerHTML = qaSummaryHTML(t) + cards + sessNote +
-    '<p class="muted center">Simple field means — no significance testing here. Import into desktop ARIS for the full ANOVA, letters and CV.</p>';
+    '<p class="muted center">Simple field means — no significance testing here. Import into desktop ARIS for the full ANOVA, letters and CV.</p>' +
+    '<p class="muted center" style="font-size:11.5px">' + esc(watermarkLine()) + '</p>';
 }
 
 /* ── photos ─────────────────────────────────────────── */
