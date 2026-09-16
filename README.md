@@ -1,3 +1,5 @@
+Proprietary — see LICENSE. © 2026 Cody Shofner. Licensed under the ARIS EULA (https://app.aristrials.com/eula).
+
 # ARIS Field
 
 Offline field data collection for agricultural research trials — a companion to the ARIS desktop app.
