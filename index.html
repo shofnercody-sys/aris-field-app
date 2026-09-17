@@ -288,7 +288,7 @@
    either one bundle file (data + photos + voice memos) that desktop ARIS imports
    directly, or plain CSVs. */
 
-const APP_VERSION = '2.11.0';
+const APP_VERSION = '2.11.1';
 
 /* == Legal: EULA click-wrap ==
    The full ARIS End User License Agreement ships inside the app (works offline). Activation via
@@ -1877,9 +1877,39 @@ async function paintFooter() {
     ' · v' + APP_VERSION +
     ' · storage ' + (persisted ? 'protected' : 'best-effort') +
     (function () { const st = licState(licLoad()); if (st.status === 'trial') return ' · Trial: ' + st.daysLeft + 'd left'; const a = acctState(acctLoad()); return a.status === 'trial' ? ' · Trial: ' + a.daysLeft + 'd left' : ''; })() +
-    '<span class="legal">\u00a9 2026 Cody Shofner \u00b7 ARIS Field\u2122 \u00b7 <a href="#" id="footLegal">Legal</a></span>';
+    '<span class="legal">\u00a9 2026 Cody Shofner \u00b7 ARIS Field\u2122 \u00b7 <a href="#" id="footLegal">Legal</a>' +
+    (signedInLabel() ? ' \u00b7 <a href="#" id="footLogout">' + (logoutArmed ? 'Tap again to log out' : 'Log out') + '</a>' : '') +
+    '</span>';
 }
-foot.addEventListener('click', (e) => { if (e.target && e.target.id === 'footLegal') { e.preventDefault(); openEulaPanel(); } });
+/* Log out: forget the access code / license key on this phone so the welcome screen returns.
+   Trial data already captured stays on the phone (and re-appears after signing back in).
+   Two taps instead of a system dialog, so a stray thumb in the field cannot sign anyone out. */
+let logoutArmed = false;
+let logoutTimer = 0;
+function signedInLabel() {
+  const a = acctLoad();
+  if (a && (a.email || a.code)) return a.email || a.code;
+  const l = licLoad();
+  return l && (l.email || l.key) ? (l.email || 'license key') : '';
+}
+function fieldLogout() {
+  acctSave(null);
+  licSave(null);
+  logoutArmed = false;
+  paintFooter();
+  showGateIfNeeded();
+}
+foot.addEventListener('click', (e) => {
+  if (!e.target) return;
+  if (e.target.id === 'footLegal') { e.preventDefault(); openEulaPanel(); }
+  if (e.target.id === 'footLogout') {
+    e.preventDefault();
+    if (logoutArmed) { clearTimeout(logoutTimer); fieldLogout(); return; }
+    logoutArmed = true;
+    paintFooter();
+    logoutTimer = setTimeout(() => { logoutArmed = false; paintFooter(); }, 4000);
+  }
+});
 window.addEventListener('online', paintFooter);
 window.addEventListener('offline', paintFooter);
 paintFooter();
