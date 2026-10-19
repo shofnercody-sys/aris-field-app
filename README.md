@@ -1,4 +1,4 @@
-Proprietary — see LICENSE. © 2026 Cody Shofner. Licensed under the ARIS EULA (https://app.aristrials.com/eula).
+Proprietary — see LICENSE. © 2026 ARIS Trials LLC. Licensed under the ARIS EULA (https://app.aristrials.com/eula).
 
 # ARIS Field
 
